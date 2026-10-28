@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planerr Day Trips</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f1e7;
+    --surface: #fffdf8;
+    --surface-2: #f0e9db;
+    --ink: #22301f;
+    --muted: #6b7262;
+    --line: #e2d9c6;
+    --accent: #2f6b46;
+    --accent-ink: #ffffff;
+    --accent-soft: #dcebdf;
+    --warn: #b4502a;
+    --warn-soft: #f7e0d5;
+    --ok: #2f6b46;
+    --shadow: 0 1px 2px rgba(40,35,20,.06), 0 4px 16px rgba(40,35,20,.06);
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141912; --surface: #1c231a; --surface-2: #232c21; --ink: #e9eee4; --muted: #9aa592;
+      --line: #313b2e; --accent: #7cc49a; --accent-ink: #10180f; --accent-soft: #24382b;
+      --warn: #f0976f; --warn-soft: #3d251b; --ok: #7cc49a; --shadow: 0 1px 2px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141912; --surface: #1c231a; --surface-2: #232c21; --ink: #e9eee4; --muted: #9aa592;
+    --line: #313b2e; --accent: #7cc49a; --accent-ink: #10180f; --accent-soft: #24382b;
+    --warn: #f0976f; --warn-soft: #3d251b; --ok: #7cc49a; --shadow: 0 1px 2px rgba(0,0,0,.3);
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 Inter, system-ui, sans-serif; }
+  h1, h2, h3 { font-family: Fraunces, Georgia, serif; margin: 0; line-height: 1.2; }
+  h2 { font-size: 1.15rem; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+
+  .topbar { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--surface); position: sticky; top: 0; z-index: 5; }
+  .brand { font-family: Fraunces, serif; font-size: 1.35rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .brand span { color: var(--accent); }
+  .topbar .spacer { flex: 1; }
+
+  .layout { display: grid; grid-template-columns: 240px minmax(0, 1fr) 320px; gap: 20px; padding: 20px; max-width: 1400px; margin: 0 auto; align-items: start; }
+  @media (max-width: 1100px) { .layout { grid-template-columns: 220px minmax(0, 1fr); } .aside { grid-column: 2; } }
+  @media (max-width: 760px) { .layout { grid-template-columns: 1fr; padding: 16px; gap: 16px; } .aside { grid-column: auto; } }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; }
+  .stack { display: grid; gap: 16px; }
+  .card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+
+  .btn { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 8px 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-weight: 500; white-space: nowrap; }
+  .btn:hover { background: var(--surface-2); }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .btn.primary:hover { filter: brightness(1.05); }
+  .btn.small { padding: 4px 9px; font-size: .85rem; border-radius: 8px; }
+  .btn.block { width: 100%; justify-content: center; }
+  .icon-btn { border: 0; background: transparent; cursor: pointer; padding: 4px 7px; border-radius: 8px; color: var(--muted); font-size: .95rem; }
+  .icon-btn:hover { background: var(--surface-2); color: var(--ink); }
+  .icon-btn:disabled { opacity: .3; cursor: default; background: none; }
+
+  input[type=text], input[type=number], input[type=date], input[type=time], select, textarea {
+    width: 100%; border: 1px solid var(--line); background: var(--bg); border-radius: 9px; padding: 7px 10px; min-width: 0;
+  }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+  textarea { resize: vertical; min-height: 38px; }
+  label.f { display: grid; gap: 4px; font-size: .78rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+
+  /* sidebar */
+  .trip-list { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 4px; }
+  .trip-list button { width: 100%; text-align: left; border: 0; background: transparent; padding: 9px 10px; border-radius: 10px; cursor: pointer; display: grid; }
+  .trip-list button:hover { background: var(--surface-2); }
+  .trip-list button.active { background: var(--accent-soft); }
+  .trip-list .t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .trip-list .d { font-size: .8rem; color: var(--muted); }
+  .side-label { font-size: .75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin: 14px 0 6px; }
+  .templates { display: grid; gap: 6px; }
+  .templates .btn { justify-content: flex-start; }
+
+  /* trip header */
+  .title-input { font-family: Fraunces, serif; font-size: 1.7rem; font-weight: 700; border: 0 !important; background: transparent !important; padding: 0 !important; margin-bottom: 14px; }
+  .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+  .fields .wide { grid-column: span 2; }
+  @media (max-width: 480px) { .fields .wide { grid-column: auto; } }
+
+  /* timeline */
+  .timeline { list-style: none; margin: 0; padding: 0; }
+  .leg { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: .85rem; padding: 6px 0 6px 112px; position: relative; }
+  .leg::before { content: ""; position: absolute; left: 101px; top: 0; bottom: 0; border-left: 2px dashed var(--line); }
+  .leg .leg-inner { margin-left: 0; display: flex; align-items: center; gap: 6px; }
+  .leg input { width: 72px; padding: 3px 8px; }
+  .stop { display: grid; grid-template-columns: 92px 1fr; gap: 20px; }
+  .stop .when { text-align: right; padding-top: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .stop .when b { display: block; font-size: .95rem; }
+  .stop .when small { color: var(--muted); font-size: .8rem; }
+  .stop-card { border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: var(--bg); position: relative; }
+  .stop-card::before { content: ""; position: absolute; left: -16px; top: 17px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px var(--surface); }
+  .stop-row { display: grid; grid-template-columns: 160px 1fr auto; gap: 8px; align-items: center; }
+  .stop-row2 { display: grid; grid-template-columns: 1fr 100px 100px; gap: 8px; margin-top: 8px; }
+  .stop-card textarea { margin-top: 8px; font-size: .9rem; }
+  .stop-actions { display: flex; }
+  .name-input { font-weight: 600; }
+  @media (max-width: 560px) {
+    .stop { grid-template-columns: 1fr; gap: 4px; }
+    .stop .when { text-align: left; padding-top: 0; display: flex; gap: 8px; align-items: baseline; }
+    .stop .when b { display: inline; }
+    .stop-card::before { display: none; }
+    .leg { padding-left: 0; } .leg::before { display: none; } .leg .leg-inner { margin-left: 0; }
+    .stop-row { grid-template-columns: 1fr auto; }
+    .stop-row select { grid-column: 1 / -1; order: -1; }
+    .stop-row2 { grid-template-columns: 1fr 1fr; }
+    .stop-row2 .place { grid-column: 1 / -1; }
+  }
+  .home-row { display: grid; grid-template-columns: 92px 1fr; gap: 20px; margin-top: 4px; }
+  .home-row .when { text-align: right; font-variant-numeric: tabular-nums; }
+  .home-pill { border: 1px dashed var(--line); border-radius: 12px; padding: 10px 12px; color: var(--muted); }
+  @media (max-width: 560px) { .home-row { grid-template-columns: 1fr; gap: 4px; } .home-row .when { text-align: left; } }
+  .empty { text-align: center; color: var(--muted); padding: 24px 12px; border: 1px dashed var(--line); border-radius: 12px; }
+  .add-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+
+  /* summary */
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat { background: var(--bg); border-radius: 10px; padding: 10px 12px; }
+  .stat .k { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; font-weight: 600; }
+  .stat .v { font-size: 1.2rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .status { margin-top: 12px; padding: 10px 12px; border-radius: 10px; font-weight: 500; font-size: .9rem; }
+  .status.ok { background: var(--accent-soft); color: var(--ok); }
+  .status.warn { background: var(--warn-soft); color: var(--warn); }
+
+  /* packing */
+  .pack { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 2px; }
+  .pack li { display: flex; align-items: center; gap: 8px; padding: 4px 4px; border-radius: 8px; }
+  .pack li:hover { background: var(--surface-2); }
+  .pack li label { flex: 1; display: flex; gap: 8px; align-items: center; cursor: pointer; }
+  .pack li.done label span { text-decoration: line-through; color: var(--muted); }
+  .pack input[type=checkbox] { accent-color: var(--accent); width: 16px; height: 16px; }
+  .pack-add { display: flex; gap: 6px; }
+  .progress { height: 6px; background: var(--surface-2); border-radius: 99px; overflow: hidden; margin-bottom: 10px; }
+  .progress div { height: 100%; background: var(--accent); transition: width .2s; }
+  .muted { color: var(--muted); font-size: .85rem; }
+
+  /* weather */
+  .wx-badge { display: block; white-space: normal; font-size: .8rem; margin-top: 4px; }
+  .wx-flag { display: block; color: var(--warn); font-size: .75rem; font-weight: 500; }
+  .wx-now { display: flex; gap: 12px; align-items: center; }
+  .wx-icon { font-size: 2.4rem; line-height: 1; }
+  .wx-temp { font-size: 1.5rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .wx-temp span { color: var(--muted); font-size: 1rem; }
+  .wx-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 12px 0; font-size: .85rem; }
+  .wx-hours { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+  .wx-hours div { flex: 0 0 auto; min-width: 52px; display: grid; justify-items: center; background: var(--bg); border-radius: 10px; padding: 6px 4px; font-variant-numeric: tabular-nums; }
+  .wx-hours small { font-size: .7rem; color: var(--muted); }
+  .wx-hours small.wet { color: var(--warn); font-weight: 600; }
+  .wx-tips { margin: 12px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: .85rem; }
+  .wx-tips li { background: var(--surface-2); padding: 8px 10px; border-radius: 9px; }
+
+  @media print {
+    .topbar, .sidebar, .add-row, .stop-actions, .no-print, .pack-add, .icon-btn { display: none !important; }
+    .layout { grid-template-columns: 1fr; padding: 0; }
+    .aside { grid-column: auto; }
+    .card { box-shadow: none; break-inside: avoid; }
+    body { background: #fff; }
+    input, select, textarea { border: 0 !important; background: transparent !important; padding: 0 !important; }
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">🧭 <div>Plan<span>err</span></div></div>
+  <div class="spacer"></div>
+  <button class="btn small" id="exportBtn" title="Download all trips as JSON">⬇ Export</button>
+  <label class="btn small" title="Load trips from a JSON file">⬆ Import<input type="file" id="importInput" accept="application/json" hidden></label>
+  <button class="btn small" id="printBtn">🖨 Print</button>
+</header>
+
+<main class="layout">
+  <nav class="sidebar card" id="sidebar"></nav>
+  <section class="stack" id="main"></section>
+  <aside class="aside stack" id="aside"></aside>
+</main>
+
+<script>
+const CATS = {
+  drive:    { label: 'Drive',       icon: '🚗' },
+  hike:     { label: 'Hike',        icon: '🥾' },
+  food:     { label: 'Food & drink',icon: '🍽️' },
+  sight:    { label: 'Sightseeing', icon: '📸' },
+  water:    { label: 'Water',       icon: '🌊' },
+  activity: { label: 'Activity',    icon: '🎟️' },
+  shop:     { label: 'Shopping',    icon: '🛍️' },
+  rest:     { label: 'Break',       icon: '☕' },
+};
+
+const PACKING = {
+  base:     ['Phone & charger', 'Wallet & ID', 'Water bottle', 'Snacks'],
+  drive:    ['Car keys', 'Road-trip playlist', 'Check fuel / charge'],
+  hike:     ['Hiking shoes', 'Sunscreen', 'Hat', 'First aid kit', 'Trail map (offline)', 'Light jacket'],
+  food:     ['Reservation confirmations'],
+  sight:    ['Camera', 'Sunglasses'],
+  water:    ['Swimsuit', 'Towel', 'Sandals', 'Dry bag', 'Change of clothes'],
+  activity: ['Tickets / bookings'],
+  shop:     ['Tote bag'],
+  rest:     ['Book or cards'],
+  rain:     ['Rain jacket', 'Umbrella', 'Waterproof phone pouch'],
+};
+
+const TEMPLATES = {
+  coast: {
+    title: 'Coastal Escape', icon: '🌊', start: '08:00', homeBy: '20:00', returnTravel: 75,
+    stops: [
+      ['Harbour café breakfast', 'food', 45, 60, 20],
+      ['Clifftop lighthouse walk', 'hike', 90, 20, 0],
+      ['Seafood shack lunch', 'food', 60, 15, 35],
+      ['Beach swim & lounge', 'water', 120, 10, 0],
+      ['Ice cream on the pier', 'food', 20, 10, 8],
+      ['Sunset viewpoint', 'sight', 45, 15, 0],
+    ],
+  },
+  mountain: {
+    title: 'Mountain Summit Day', icon: '⛰️', start: '06:30', homeBy: '19:00', returnTravel: 90,
+    stops: [
+      ['Coffee & trail snacks', 'food', 20, 30, 12],
+      ['Summit loop trail', 'hike', 240, 60, 10],
+      ['Alpine lake dip', 'water', 45, 10, 0],
+      ['Mountain town brewery', 'food', 90, 30, 40],
+    ],
+  },
+  city: {
+    title: 'City Explorer', icon: '🏙️', start: '09:30', homeBy: '22:00', returnTravel: 40,
+    stops: [
+      ['Brunch spot', 'food', 60, 40, 25],
+      ['Art museum', 'sight', 120, 15, 20],
+      ['Street market lunch', 'food', 60, 15, 15],
+      ['Old town walking tour', 'activity', 90, 10, 15],
+      ['Vintage shops', 'shop', 60, 10, 30],
+      ['Rooftop dinner', 'food', 120, 20, 60],
+    ],
+  },
+  blank: { title: 'New Adventure', icon: '✨', start: '09:00', homeBy: '18:00', returnTravel: 30, stops: [] },
+};
+
+const STORE_KEY = 'planerr.v1';
+const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const num = v => Math.max(0, Math.round(+v || 0));
+const toMin = t => { const [h, m] = String(t || '00:00').split(':').map(Number); return (h || 0) * 60 + (m || 0); };
+const fmtTime = m => {
+  m = ((Math.round(m) % 1440) + 1440) % 1440;
+  const h = Math.floor(m / 60), mm = String(m % 60).padStart(2, '0');
+  return `${(h % 12) || 12}:${mm} ${h < 12 ? 'AM' : 'PM'}`;
+};
+const fmtDur = m => { m = Math.round(m); const h = Math.floor(m / 60), r = m % 60; return h ? (r ? `${h}h ${r}m` : `${h}h`) : `${r}m`; };
+const fmtDate = d => d ? new Date(d + 'T12:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : 'No date';
+const money = n => '$' + (Math.round(n * 100) / 100).toLocaleString(undefined, { maximumFractionDigits: 2 });
+
+function nextSaturday() {
+  const d = new Date(); d.setDate(d.getDate() + ((6 - d.getDay() + 7) % 7 || 7));
+  return d.toISOString().slice(0, 10);
+}
+
+function fromTemplate(key) {
+  const t = TEMPLATES[key];
+  return {
+    id: uid(), title: t.title, date: nextSaturday(), start: t.start, homeBy: t.homeBy,
+    base: '', people: 2, returnTravel: t.returnTravel, notes: '',
+    stops: t.stops.map(([name, cat, dur, travel, cost]) => ({ id: uid(), name, cat, dur, travel, cost, place: '', notes: '' })),
+    packing: PACKING.base.map(text => ({ id: uid(), text, done: false })),
+  };
+}
+
+// ---------- state ----------
+let state = load();
+function load() {
+  try {
+    const s = JSON.parse(localStorage.getItem(STORE_KEY));
+    if (s && Array.isArray(s.trips) && s.trips.length) return s;
+  } catch (e) {}
+  const first = fromTemplate('coast');
+  return { trips: [first], activeId: first.id };
+}
+function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} }
+const trip = () => state.trips.find(t => t.id === state.activeId) || state.trips[0];
+const stopById = id => trip().stops.find(s => s.id === id);
+
+function schedule(t) {
+  let cur = toMin(t.start);
+  const rows = t.stops.map(s => { const arrive = cur + s.travel; const depart = arrive + s.dur; cur = depart; return { arrive, depart }; });
+  const home = cur + t.returnTravel;
+  const active = t.stops.reduce((a, s) => a + s.dur, 0);
+  const travel = t.stops.reduce((a, s) => a + s.travel, 0) + t.returnTravel;
+  const cost = t.stops.reduce((a, s) => a + (+s.cost || 0), 0);
+  return { rows, home, active, travel, cost, total: home - toMin(t.start) };
+}
+
+if (!state.units) state.units = navigator.language === 'en-US' ? 'F' : 'C';
+
+// ---------- weather (Open-Meteo, no API key) ----------
+const WMO = {
+  0: ['☀️', 'Clear'], 1: ['🌤️', 'Mostly clear'], 2: ['⛅', 'Partly cloudy'], 3: ['☁️', 'Overcast'],
+  45: ['🌫️', 'Fog'], 48: ['🌫️', 'Freezing fog'], 51: ['🌦️', 'Light drizzle'], 53: ['🌦️', 'Drizzle'], 55: ['🌧️', 'Heavy drizzle'],
+  56: ['🌧️', 'Freezing drizzle'], 57: ['🌧️', 'Freezing drizzle'], 61: ['🌦️', 'Light rain'], 63: ['🌧️', 'Rain'], 65: ['🌧️', 'Heavy rain'],
+  66: ['🌧️', 'Freezing rain'], 67: ['🌧️', 'Freezing rain'], 71: ['🌨️', 'Light snow'], 73: ['🌨️', 'Snow'], 75: ['❄️', 'Heavy snow'],
+  77: ['🌨️', 'Snow grains'], 80: ['🌦️', 'Showers'], 81: ['🌧️', 'Heavy showers'], 82: ['⛈️', 'Violent showers'],
+  85: ['🌨️', 'Snow showers'], 86: ['❄️', 'Heavy snow showers'], 95: ['⛈️', 'Thunderstorms'], 96: ['⛈️', 'Thunderstorms & hail'], 99: ['⛈️', 'Thunderstorms & hail'],
+};
+const wmo = c => WMO[c] || ['🌡️', 'Unknown'];
+const US_STATES = Object.fromEntries(('AL Alabama,AK Alaska,AZ Arizona,AR Arkansas,CA California,CO Colorado,CT Connecticut,DE Delaware,FL Florida,GA Georgia,'
+  + 'HI Hawaii,ID Idaho,IL Illinois,IN Indiana,IA Iowa,KS Kansas,KY Kentucky,LA Louisiana,ME Maine,MD Maryland,MA Massachusetts,MI Michigan,'
+  + 'MN Minnesota,MS Mississippi,MO Missouri,MT Montana,NE Nebraska,NV Nevada,NH New Hampshire,NJ New Jersey,NM New Mexico,NY New York,'
+  + 'NC North Carolina,ND North Dakota,OH Ohio,OK Oklahoma,OR Oregon,PA Pennsylvania,RI Rhode Island,SC South Carolina,SD South Dakota,'
+  + 'TN Tennessee,TX Texas,UT Utah,VT Vermont,VA Virginia,WA Washington,WV West Virginia,WI Wisconsin,WY Wyoming,USA US,DC District of Columbia')
+  .split(',').map(s => [s.slice(0, s.indexOf(' ')), s.slice(s.indexOf(' ') + 1)]));
+const OUTDOOR = new Set(['hike', 'water', 'sight']);
+const geoCache = {}, fcCache = {};
+let wx = { key: '', status: 'msg', data: null, place: null, msg: '' };
+let wxTimer;
+
+const wxQuery = t => (t.weatherPlace || '').trim() || (t.base || '').trim() || (t.stops.find(s => s.place.trim())?.place.trim() || '');
+const wxMin = iso => toMin(iso.slice(11, 16));
+const wxRainy = () => wx.status === 'ok' && (wx.data.daily.precipitation_probability_max[0] ?? 0) >= 50;
+
+function daysFromToday(date) {
+  const today = new Date(); today.setHours(12, 0, 0, 0);
+  return Math.round((new Date(date + 'T12:00') - today) / 864e5);
+}
+
+async function geocode(q) {
+  if (q in geoCache) return geoCache[q];
+  // The geocoder matches place names, so also try each comma-separated part ("12 Main St, Portland, OR" → "Portland").
+  const segs = q.split(',').map(s => s.trim()).filter(s => s && !/\d/.test(s));
+  // Other parts of the address ("CA", "California", "USA") pick the right one of several same-named places.
+  const hints = segs.map(s => (US_STATES[s.toUpperCase()] || s).toLowerCase());
+  const score = h => [h.admin1, h.country, h.country_code].filter(Boolean).reduce((n, v) => n + hints.includes(v.toLowerCase()), 0);
+  for (const name of new Set([q, ...segs])) {
+    const r = await fetch('https://geocoding-api.open-meteo.com/v1/search?count=10&language=en&format=json&name=' + encodeURIComponent(name));
+    if (!r.ok) throw new Error('Location lookup failed');
+    const results = (await r.json()).results || [];
+    const hit = results.reduce((best, h) => score(h) > score(best) ? h : best, results[0]);
+    if (hit) return geoCache[q] = { lat: hit.latitude, lon: hit.longitude, label: [hit.name, hit.admin1, hit.country_code].filter(Boolean).join(', ') };
+  }
+  return geoCache[q] = null;
+}
+
+async function forecast(p, date, units) {
+  const key = `${p.lat},${p.lon}|${date}|${units}`;
+  if (fcCache[key]) return fcCache[key];
+  const u = units === 'F' ? '&temperature_unit=fahrenheit&wind_speed_unit=mph' : '';
+  const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lon}&timezone=auto&start_date=${date}&end_date=${date}`
+    + '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,sunrise,sunset,uv_index_max'
+    + '&hourly=temperature_2m,precipitation_probability,weather_code' + u);
+  if (!r.ok) throw new Error('Forecast unavailable');
+  return fcCache[key] = await r.json();
+}
+
+// Fetches only when the location, date or units change; schedule edits reuse the loaded forecast.
+function ensureWeather(t) {
+  const q = wxQuery(t), key = `${q}|${t.date}|${state.units}`;
+  if (key === wx.key) return;
+  clearTimeout(wxTimer);
+  wx = { key, status: 'msg', data: null, place: null, msg: '' };
+  if (!q) { wx.msg = 'Add a starting point or a stop location to see the forecast.'; return; }
+  if (!t.date) { wx.msg = 'Pick a date to see the forecast.'; return; }
+  const days = daysFromToday(t.date);
+  if (days < 0) { wx.msg = 'This trip date has passed, so there’s no forecast.'; return; }
+  if (days > 15) {
+    const open = new Date(t.date + 'T12:00'); open.setDate(open.getDate() - 15);
+    wx.msg = `Forecasts reach 16 days ahead. Check back from ${open.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}.`;
+    return;
+  }
+  wx.status = 'loading';
+  wxTimer = setTimeout(async () => {
+    try {
+      const place = await geocode(q);
+      if (wx.key !== key) return;
+      if (!place) wx = { ...wx, status: 'msg', msg: `Couldn’t find “${q}”. Try a town or city name in the box above.` };
+      else {
+        const data = await forecast(place, t.date, state.units);
+        if (wx.key !== key) return;
+        wx = { ...wx, status: 'ok', data, place };
+      }
+    } catch (e) {
+      if (wx.key !== key) return;
+      wx = { ...wx, status: 'error', msg: 'Couldn’t reach the weather service. Check your connection.' };
+    }
+    renderDerived();
+  }, 600);
+}
+
+function wxAt(min) {
+  const h = wx.data?.hourly;
+  if (!h || min < 0 || min >= 1440) return null;
+  const i = Math.floor(min / 60);
+  return { temp: h.temperature_2m[i], rain: h.precipitation_probability[i] ?? 0, code: h.weather_code[i] };
+}
+
+function renderWeather(t, sch) {
+  ensureWeather(t);
+  const ok = wx.status === 'ok';
+  const sunset = ok ? wxMin(wx.data.daily.sunset[0]) : null;
+
+  t.stops.forEach((s, i) => {
+    const el = document.querySelector(`.stop[data-id="${s.id}"] [data-wx]`);
+    if (!el) return;
+    const w = ok && wxAt(sch.rows[i].arrive);
+    if (!w) { el.innerHTML = ''; return; }
+    const flags = [];
+    if (OUTDOOR.has(s.cat) && w.rain >= 50) flags.push(`<span class="wx-flag">☔ ${w.rain}% rain</span>`);
+    if (OUTDOOR.has(s.cat) && sch.rows[i].depart > sunset) flags.push(`<span class="wx-flag">🌙 after sunset</span>`);
+    el.innerHTML = `<span title="${wmo(w.code)[1]}, ${w.rain}% chance of rain">${wmo(w.code)[0]} ${Math.round(w.temp)}°</span>${flags.join('')}`;
+  });
+
+  const body = $('#wxBody');
+  if (!body) return;
+  $('#wxPlace').placeholder = wxQuery({ ...t, weatherPlace: '' }) || 'Town or city';
+  if (wx.status === 'loading') { body.innerHTML = '<p class="muted">Checking the forecast…</p>'; return; }
+  if (wx.status === 'error') { body.innerHTML = `<p class="muted">${esc(wx.msg)}</p><button class="btn small" data-act="wxretry">Try again</button>`; return; }
+  if (!ok) { body.innerHTML = `<p class="muted">${esc(wx.msg)}</p>`; return; }
+
+  const d = wx.data.daily, [icon, label] = wmo(d.weather_code[0]);
+  const hours = [];
+  for (let m = Math.floor(toMin(t.start) / 60) * 60; m <= Math.min(sch.home, 1439); m += 60) hours.push(m);
+  const hot = state.units === 'F' ? 85 : 29, cold = state.units === 'F' ? 45 : 7;
+  const tips = [];
+  if (sch.home > sunset) tips.push(`🌙 Sunset is at ${fmtTime(sunset)}, so you’ll head home in the dark.`);
+  if (wxRainy()) tips.push('☔ Rain is likely. Pack a rain jacket and plan an indoor backup.');
+  if ((d.uv_index_max[0] ?? 0) >= 6) tips.push('🧴 Strong sun (high UV). Bring sunscreen and a hat.');
+  if (d.temperature_2m_max[0] >= hot) tips.push('🥵 Hot day. Bring extra water.');
+  if (d.temperature_2m_min[0] <= cold) tips.push('🧥 Cold morning and evening. Bring layers.');
+
+  body.innerHTML = `
+    <div class="wx-now">
+      <div class="wx-icon">${icon}</div>
+      <div><div class="wx-temp">${Math.round(d.temperature_2m_max[0])}° <span>/ ${Math.round(d.temperature_2m_min[0])}°</span></div>
+      <div class="muted">${label} · ${esc(wx.place.label)}</div></div>
+    </div>
+    <div class="wx-meta">
+      <span title="Chance of rain">☔ ${d.precipitation_probability_max[0] ?? 0}%</span>
+      <span title="Max wind">💨 ${Math.round(d.wind_speed_10m_max[0])} ${state.units === 'F' ? 'mph' : 'km/h'}</span>
+      <span title="Sunrise">🌅 ${fmtTime(wxMin(d.sunrise[0]))}</span>
+      <span title="Sunset">🌇 ${fmtTime(sunset)}</span>
+    </div>
+    ${hours.length ? `<div class="wx-hours">${hours.map(m => { const w = wxAt(m); return w ? `<div><small>${fmtTime(m).replace(':00', '')}</small><span>${wmo(w.code)[0]}</span><b>${Math.round(w.temp)}°</b><small class="${w.rain >= 50 ? 'wet' : ''}">${w.rain}%</small></div>` : ''; }).join('')}</div>` : ''}
+    ${tips.length ? `<ul class="wx-tips">${tips.map(x => `<li>${x}</li>`).join('')}</ul>` : ''}`;
+}
+
+// ---------- render ----------
+const $ = sel => document.querySelector(sel);
+
+function render() {
+  if (!state.trips.find(t => t.id === state.activeId)) state.activeId = state.trips[0].id;
+  renderSidebar();
+  renderMain();
+  renderAside();
+  renderDerived();
+}
+
+function renderSidebar() {
+  const list = [...state.trips].sort((a, b) => (a.date || '9').localeCompare(b.date || '9'));
+  $('#sidebar').innerHTML = `
+    <div class="card-head"><h2>My trips</h2></div>
+    <ul class="trip-list">
+      ${list.map(t => `<li><button data-act="open" data-id="${t.id}" class="${t.id === state.activeId ? 'active' : ''}">
+        <span class="t">${esc(t.title || 'Untitled trip')}</span><span class="d">${fmtDate(t.date)} · ${t.stops.length} stops</span>
+      </button></li>`).join('')}
+    </ul>
+    <div class="side-label">Start a new trip</div>
+    <div class="templates">
+      ${Object.entries(TEMPLATES).map(([k, t]) => `<button class="btn small" data-act="new" data-tpl="${k}">${t.icon} ${k === 'blank' ? 'Blank trip' : esc(t.title)}</button>`).join('')}
+    </div>`;
+}
+
+function catOptions(sel) {
+  return Object.entries(CATS).map(([k, c]) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${c.icon} ${c.label}</option>`).join('');
+}
+
+function renderMain() {
+  const t = trip();
+  const stops = t.stops.map((s, i) => `
+    <li class="leg" data-id="${s.id}">
+      <span class="leg-inner">🚗 <input type="number" min="0" step="5" data-sf="travel" value="${s.travel}" aria-label="Travel minutes"> min ${i === 0 ? 'from start' : 'travel'}</span>
+    </li>
+    <li class="stop" data-id="${s.id}">
+      <div class="when"><b data-arrive></b><small data-depart></small><span class="wx-badge" data-wx></span></div>
+      <div class="stop-card">
+        <div class="stop-row">
+          <select data-sf="cat" aria-label="Category">${catOptions(s.cat)}</select>
+          <input type="text" class="name-input" data-sf="name" value="${esc(s.name)}" placeholder="What are you doing?">
+          <div class="stop-actions">
+            <button class="icon-btn" data-act="up" title="Move up" ${i === 0 ? 'disabled' : ''}>↑</button>
+            <button class="icon-btn" data-act="down" title="Move down" ${i === t.stops.length - 1 ? 'disabled' : ''}>↓</button>
+            <button class="icon-btn" data-act="dup" title="Duplicate">⧉</button>
+            <button class="icon-btn" data-act="del" title="Remove">✕</button>
+          </div>
+        </div>
+        <div class="stop-row2">
+          <input type="text" class="place" data-sf="place" value="${esc(s.place)}" placeholder="📍 Place or address">
+          <label class="f">Minutes<input type="number" min="0" step="5" data-sf="dur" value="${s.dur}"></label>
+          <label class="f">Cost $<input type="number" min="0" step="1" data-sf="cost" value="${s.cost}"></label>
+        </div>
+        <textarea data-sf="notes" rows="1" placeholder="Notes, booking refs, tips…">${esc(s.notes)}</textarea>
+      </div>
+    </li>`).join('');
+
+  $('#main').innerHTML = `
+    <div class="card">
+      <input type="text" class="title-input" data-f="title" value="${esc(t.title)}" placeholder="Name your adventure" aria-label="Trip name">
+      <div class="fields">
+        <label class="f">Date<input type="date" data-f="date" value="${esc(t.date)}"></label>
+        <label class="f">Leave at<input type="time" data-f="start" value="${esc(t.start)}"></label>
+        <label class="f">Home by<input type="time" data-f="homeBy" value="${esc(t.homeBy)}"></label>
+        <label class="f">People<input type="number" min="1" data-f="people" value="${t.people}"></label>
+        <label class="f wide">Starting point<input type="text" data-f="base" value="${esc(t.base)}" placeholder="Home address or city"></label>
+        <label class="f">Drive home (min)<input type="number" min="0" step="5" data-f="returnTravel" value="${t.returnTravel}"></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Itinerary</h2><span class="muted" data-total></span></div>
+      ${t.stops.length ? `<ol class="timeline">${stops}</ol>
+        <div class="home-row">
+          <div class="when"><b data-home></b></div>
+          <div class="home-pill">🏠 Back home · ${t.returnTravel} min drive${t.base ? ' to ' + esc(t.base) : ''}</div>
+        </div>`
+        : `<div class="empty">No stops yet. Add your first one below, or start from a template.</div>`}
+      <div class="add-row">
+        <button class="btn primary" data-act="add">＋ Add stop</button>
+        <button class="btn" data-act="surprise">🎲 Surprise me</button>
+      </div>
+    </div>`;
+}
+
+function renderAside() {
+  const t = trip();
+  $('#aside').innerHTML = `
+    <div class="card">
+      <div class="card-head"><h2>Day at a glance</h2></div>
+      <div class="stats">
+        <div class="stat"><div class="k">Out for</div><div class="v" data-s="total"></div></div>
+        <div class="stat"><div class="k">Stops</div><div class="v" data-s="stops"></div></div>
+        <div class="stat"><div class="k">Doing stuff</div><div class="v" data-s="active"></div></div>
+        <div class="stat"><div class="k">On the road</div><div class="v" data-s="travel"></div></div>
+        <div class="stat"><div class="k">Est. cost</div><div class="v" data-s="cost"></div></div>
+        <div class="stat"><div class="k">Per person</div><div class="v" data-s="pp"></div></div>
+      </div>
+      <div class="status" data-s="status"></div>
+      <div class="no-print" style="display:grid;gap:8px;margin-top:12px">
+        <a class="btn block" data-s="map" target="_blank" rel="noopener">🗺️ Open route in Google Maps</a>
+        <div style="display:flex;gap:8px">
+          <button class="btn small" style="flex:1;justify-content:center" data-act="copytrip">⧉ Duplicate trip</button>
+          <button class="btn small" style="flex:1;justify-content:center" data-act="deltrip">🗑 Delete trip</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Weather</h2><button class="btn small no-print" data-act="units" title="Switch temperature units">Show °${state.units === 'F' ? 'C' : 'F'}</button></div>
+      <input type="text" id="wxPlace" class="no-print" data-f="weatherPlace" value="${esc(t.weatherPlace || '')}" placeholder="Town or city" aria-label="Weather location">
+      <div id="wxBody" style="margin-top:12px"></div>
+      <p class="muted" style="margin:10px 0 0;font-size:.75rem">Forecast from <a href="https://open-meteo.com/" target="_blank" rel="noopener" style="color:inherit">Open-Meteo</a></p>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Packing list</h2><button class="btn small no-print" data-act="suggest" title="Add items based on your stops">✨ Suggest</button></div>
+      <div class="progress"><div data-s="packbar"></div></div>
+      <ul class="pack">
+        ${t.packing.map(p => `<li class="${p.done ? 'done' : ''}" data-pid="${p.id}">
+          <label><input type="checkbox" data-pk ${p.done ? 'checked' : ''}><span>${esc(p.text)}</span></label>
+          <button class="icon-btn" data-act="delpack" title="Remove">✕</button></li>`).join('')}
+      </ul>
+      <form class="pack-add" id="packForm"><input type="text" id="packInput" placeholder="Add an item"><button class="btn">Add</button></form>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Trip notes</h2></div>
+      <textarea data-f="notes" rows="4" placeholder="Parking, weather backup plan, who's driving…">${esc(t.notes)}</textarea>
+    </div>`;
+}
+
+// Updates computed values in place so typing never loses focus.
+function renderDerived() {
+  const t = trip(), sch = schedule(t);
+  t.stops.forEach((s, i) => {
+    const el = document.querySelector(`.stop[data-id="${s.id}"]`);
+    if (!el) return;
+    el.querySelector('[data-arrive]').textContent = fmtTime(sch.rows[i].arrive);
+    el.querySelector('[data-depart]').textContent = 'until ' + fmtTime(sch.rows[i].depart);
+  });
+  const home = $('[data-home]'); if (home) home.textContent = fmtTime(sch.home);
+  const tot = $('[data-total]'); if (tot) tot.textContent = t.stops.length ? `${fmtTime(toMin(t.start))} – ${fmtTime(sch.home)}` : '';
+
+  const set = (k, v) => { const el = $(`[data-s="${k}"]`); if (el) el.textContent = v; };
+  set('total', fmtDur(sch.total));
+  set('stops', t.stops.length);
+  set('active', fmtDur(sch.active));
+  set('travel', fmtDur(sch.travel));
+  set('cost', money(sch.cost * Math.max(1, t.people)));
+  set('pp', money(sch.cost));
+
+  const status = $('[data-s="status"]');
+  if (t.homeBy) {
+    const diff = toMin(t.homeBy) - sch.home;
+    status.className = 'status ' + (diff >= 0 ? 'ok' : 'warn');
+    status.textContent = diff >= 0
+      ? `✓ Home at ${fmtTime(sch.home)}, ${fmtDur(diff)} to spare`
+      : `⚠ Home at ${fmtTime(sch.home)}, ${fmtDur(-diff)} past your ${fmtTime(toMin(t.homeBy))} goal`;
+  } else {
+    status.className = 'status ok';
+    status.textContent = `Home around ${fmtTime(sch.home)}`;
+  }
+
+  const places = t.stops.map(s => s.place.trim()).filter(Boolean);
+  const map = $('[data-s="map"]');
+  if (places.length || t.base) {
+    const origin = t.base || places[0];
+    const dest = t.base || places[places.length - 1];
+    const wps = t.base ? places : places.slice(1, -1);
+    map.href = 'https://www.google.com/maps/dir/?api=1&origin=' + encodeURIComponent(origin) + '&destination=' + encodeURIComponent(dest)
+      + (wps.length ? '&waypoints=' + encodeURIComponent(wps.join('|')) : '');
+    map.removeAttribute('aria-disabled'); map.style.opacity = '';
+  } else {
+    map.removeAttribute('href'); map.setAttribute('aria-disabled', 'true'); map.style.opacity = '.5';
+    map.title = 'Add a starting point or stop places to build a route';
+  }
+
+  const done = t.packing.filter(p => p.done).length;
+  $('[data-s="packbar"]').style.width = t.packing.length ? (done / t.packing.length * 100) + '%' : '0';
+  renderWeather(t, sch);
+  renderSidebar();
+}
+
+// ---------- events ----------
+const NUM_FIELDS = new Set(['dur', 'travel', 'cost', 'returnTravel', 'people']);
+
+document.addEventListener('input', e => {
+  const el = e.target, t = trip();
+  if (el.dataset.f) {
+    t[el.dataset.f] = NUM_FIELDS.has(el.dataset.f) ? num(el.value) : el.value;
+    if (el.dataset.f === 'returnTravel' || el.dataset.f === 'base') { const pill = $('.home-pill'); if (pill) pill.textContent = `🏠 Back home · ${t.returnTravel} min drive${t.base ? ' to ' + t.base : ''}`; }
+  } else if (el.dataset.sf) {
+    const s = stopById(el.closest('[data-id]').dataset.id);
+    s[el.dataset.sf] = NUM_FIELDS.has(el.dataset.sf) ? num(el.value) : el.value;
+  } else if (el.hasAttribute('data-pk')) {
+    const p = t.packing.find(p => p.id === el.closest('[data-pid]').dataset.pid);
+    p.done = el.checked; el.closest('li').classList.toggle('done', p.done);
+  } else return;
+  save(); renderDerived();
+});
+
+const IDEAS = [
+  ['Scenic overlook', 'sight', 30, 0], ['Local bakery stop', 'food', 25, 10], ['Farmers market', 'shop', 45, 20],
+  ['Waterfall trail', 'hike', 90, 0], ['Kayak rental', 'water', 120, 45], ['Antique shop crawl', 'shop', 60, 15],
+  ['Picnic in the park', 'rest', 60, 15], ['Winery tasting', 'food', 75, 30], ['Botanical garden', 'sight', 75, 12],
+  ['Hot springs soak', 'water', 90, 25], ['Roadside fruit stand', 'food', 15, 8], ['Historic main street stroll', 'sight', 45, 0],
+  ['Mini golf', 'activity', 45, 12], ['Bookshop browse', 'shop', 30, 15], ['Stargazing spot', 'sight', 60, 0],
+];
+
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-act]');
+  if (!btn) return;
+  const act = btn.dataset.act, t = trip();
+  const li = btn.closest('[data-id]'), idx = li ? t.stops.findIndex(s => s.id === li.dataset.id) : -1;
+  let focusNew = null;
+
+  switch (act) {
+    case 'open': state.activeId = btn.dataset.id; break;
+    case 'new': { const n = fromTemplate(btn.dataset.tpl); state.trips.push(n); state.activeId = n.id; break; }
+    case 'add': { const s = { id: uid(), name: '', cat: 'sight', dur: 60, travel: 15, cost: 0, place: '', notes: '' }; t.stops.push(s); focusNew = s.id; break; }
+    case 'surprise': {
+      const have = new Set(t.stops.map(s => s.name));
+      const pool = IDEAS.filter(i => !have.has(i[0]));
+      const [name, cat, dur, cost] = (pool.length ? pool : IDEAS)[Math.floor(Math.random() * (pool.length || IDEAS.length))];
+      t.stops.push({ id: uid(), name, cat, dur, travel: 15, cost, place: '', notes: '' });
+      break;
+    }
+    case 'up': if (idx > 0) [t.stops[idx - 1], t.stops[idx]] = [t.stops[idx], t.stops[idx - 1]]; break;
+    case 'down': if (idx < t.stops.length - 1) [t.stops[idx + 1], t.stops[idx]] = [t.stops[idx], t.stops[idx + 1]]; break;
+    case 'dup': t.stops.splice(idx + 1, 0, { ...t.stops[idx], id: uid() }); break;
+    case 'del': t.stops.splice(idx, 1); break;
+    case 'suggest': {
+      const have = new Set(t.packing.map(p => p.text.toLowerCase()));
+      const cats = ['base', ...new Set(t.stops.map(s => s.cat)), ...(wxRainy() ? ['rain'] : [])];
+      cats.flatMap(c => PACKING[c] || []).forEach(text => {
+        if (!have.has(text.toLowerCase())) { have.add(text.toLowerCase()); t.packing.push({ id: uid(), text, done: false }); }
+      });
+      break;
+    }
+    case 'units': state.units = state.units === 'F' ? 'C' : 'F'; break;
+    case 'wxretry': wx.key = ''; break;
+    case 'delpack': { const pid = btn.closest('[data-pid]').dataset.pid; t.packing = t.packing.filter(p => p.id !== pid); break; }
+    case 'copytrip': {
+      const c = JSON.parse(JSON.stringify(t)); c.id = uid(); c.title = t.title + ' (copy)';
+      c.stops.forEach(s => s.id = uid()); c.packing.forEach(p => { p.id = uid(); p.done = false; });
+      state.trips.push(c); state.activeId = c.id; break;
+    }
+    case 'deltrip': {
+      if (!confirm(`Delete "${t.title || 'this trip'}"?`)) return;
+      state.trips = state.trips.filter(x => x.id !== t.id);
+      if (!state.trips.length) state.trips.push(fromTemplate('blank'));
+      state.activeId = state.trips[0].id; break;
+    }
+    default: return;
+  }
+  save(); render();
+  if (focusNew) document.querySelector(`.stop[data-id="${focusNew}"] .name-input`)?.focus();
+});
+
+document.addEventListener('submit', e => {
+  if (e.target.id !== 'packForm') return;
+  e.preventDefault();
+  const text = $('#packInput').value.trim();
+  if (!text) return;
+  trip().packing.push({ id: uid(), text, done: false });
+  save(); renderAside(); renderDerived();
+  $('#packInput').focus();
+});
+
+$('#printBtn').onclick = () => window.print();
+$('#exportBtn').onclick = () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'planerr-trips.json' });
+  a.click(); URL.revokeObjectURL(a.href);
+};
+$('#importInput').onchange = async e => {
+  const file = e.target.files[0]; if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    if (!Array.isArray(data.trips) || !data.trips.length) throw new Error('No trips in file');
+    const ids = new Set(state.trips.map(t => t.id));
+    data.trips.forEach(t => { if (ids.has(t.id)) t.id = uid(); state.trips.push(t); });
+    state.activeId = data.trips[0].id; save(); render();
+  } catch (err) { alert('Could not import: ' + err.message); }
+  e.target.value = '';
+};
+
+render();
+</script>
+</body>
+</html>

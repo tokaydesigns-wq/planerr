@@ -1,0 +1,17 @@
+{
+  "name": "Planerr — Day Trip Adventures",
+  "short_name": "Planerr",
+  "description": "Plan day-trip adventures with live weather, opening hours, food along the way and a morning briefing.",
+  "start_url": "./#/",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F2F5EF",
+  "theme_color": "#FF5A36",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
