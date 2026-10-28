@@ -10,14 +10,17 @@ async function getJSON(url, opts) {
   return r.json();
 }
 
-const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
-async function overpass(query) {
+// The public OpenStreetMap servers get busy, so each one gets a time limit before trying the next.
+const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+async function overpass(query, perServerMs = 20000) {
   let last;
   for (const url of OVERPASS) {
+    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), perServerMs);
     try {
-      const d = await getJSON(url, { method: 'POST', body: 'data=' + encodeURIComponent(query), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+      const d = await getJSON(url, { method: 'POST', body: 'data=' + encodeURIComponent(query), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: ctl.signal });
+      if (d.remark && /runtime error|timed out/i.test(d.remark) && !d.elements?.length) throw new Error(d.remark);
       return d.elements || [];
-    } catch (e) { last = e; }
+    } catch (e) { last = e; } finally { clearTimeout(timer); }
   }
   throw last;
 }
@@ -67,9 +70,9 @@ const API = {
     return Object.fromEntries(els.map(e => [e.type[0].toUpperCase() + e.id, e.tags || {}]));
   },
 
-  async food(points) {
+  async food(points, perServerMs) {
     const parts = points.map(p => `nwr(around:2500,${p.lat.toFixed(5)},${p.lon.toFixed(5)})["amenity"~"^(restaurant|cafe|fast_food|ice_cream|pub)$"]["name"];`).join('');
-    const els = await overpass(`[out:json][timeout:25];(${parts});out tags center 120;`);
+    const els = await overpass(`[out:json][timeout:25];(${parts});out tags center 120;`, perServerMs);
     return els.map(e => {
       const t = e.tags, pt = elPoint(e);
       return {
@@ -93,6 +96,24 @@ const API = {
       const t = e.tags, kind = t.tourism && FAMILY_OSM[t.tourism] ? t.tourism : t.leisure;
       return { id: e.type[0].toUpperCase() + e.id, kind, name: t.name || 'Playground', ...elPoint(e), museumKind: t.museum || null, website: t.website || null };
     }).filter(x => x.lat != null && FAMILY_OSM[x.kind]);
+  },
+
+  // Real driving minutes from one origin to many places in a single request.
+  async driveTable(origin, pts) {
+    const c = [origin, ...pts].map(p => `${p.lon.toFixed(5)},${p.lat.toFixed(5)}`).join(';');
+    const d = await getJSON(`https://router.project-osrm.org/table/v1/driving/${c}?sources=0&annotations=duration,distance`);
+    return pts.map((_, i) => {
+      const s = d.durations?.[0]?.[i + 1];
+      return s == null ? null : { min: Math.round(s / 60), km: (d.distances?.[0]?.[i + 1] ?? 0) / 1000 };
+    });
+  },
+
+  // One forecast call for many places (Open-Meteo accepts comma-separated coordinates).
+  async weatherMany(pts, date, units) {
+    const u = units === 'imperial' ? '&temperature_unit=fahrenheit' : '';
+    const d = await getJSON(`https://api.open-meteo.com/v1/forecast?latitude=${pts.map(p => p.lat.toFixed(3)).join(',')}&longitude=${pts.map(p => p.lon.toFixed(3)).join(',')}`
+      + `&timezone=auto&start_date=${date}&end_date=${date}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max${u}`);
+    return (Array.isArray(d) ? d : [d]).map(x => x.daily ? { code: x.daily.weather_code[0], hi: x.daily.temperature_2m_max[0], lo: x.daily.temperature_2m_min[0], rain: x.daily.precipitation_probability_max[0] ?? 0 } : null);
   },
 
   async wikiNearby(p) {
@@ -169,6 +190,15 @@ async function research(adv, onStep = () => {}) {
       R.nearby = await API.wikiNearby(anchor);
     }),
   ]);
+
+  // Stops added from ideas, Wikipedia or the community have coordinates but no OpenStreetMap id yet.
+  // Match each to the nearest same-named map entry so its hours and website can be checked.
+  await Promise.all(adv.stops.filter(s => s.place && !s.place.osm && s.name).map(async s => {
+    try {
+      const hit = (await API.searchPlaces(s.name, s.place)).find(r => r.osm && haversine(r, s.place) < 3);
+      if (hit) s.place.osm = hit.osm;
+    } catch (e) {}
+  }));
 
   // Overpass allows few parallel requests per user, so these run one after another.
   await step('hours', async () => {

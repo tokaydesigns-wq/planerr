@@ -4,6 +4,7 @@ A phone-first web app for planning day-trip adventures. Add it to your home scre
 
 ## What it does
 
+- **Trip ideas**: enter your starting point, the longest drive you want each way, the date and times, the kinds of day you're into, the food you like, a budget and whether the kids are coming. Planerr finds well-known real places within that drive (Wikidata), checks the actual drive time and that day's weather for each, picks restaurants that match your taste, adds sights nearby, and builds **3 different day plans**. Tap **Save this plan**, or **Show me 3 different plans** for more.
 - **Plan an adventure**: type of day, date, leave/back-by times, starting point, main destination, stops along the way, budget, people, and kids.
 - **Research on its own** when you save a plan:
   - drive time and distance for every leg (OSRM / OpenStreetMap)
@@ -53,6 +54,7 @@ The anon key is meant to be public. Row Level Security lets anyone read and post
 
 - **Opening hours** come from OpenStreetMap volunteers. They're good for big attractions and patchier for small businesses, so confirm anything important on the official site.
 - **Drive times** don't include traffic.
+- **Restaurant data** comes from the public OpenStreetMap servers (Overpass), which are sometimes overloaded. When that happens, ideas get a lunch placeholder, and the saved plan fills in real places once the server responds. Use **Refresh** under Research to retry.
 - **Photos** come from Wikipedia. Landmarks, parks and towns usually have one; small businesses usually don't, so those get an illustration instead.
 - **Ticket steps** are general guidance. Prices and availability come from the venue's own site.
 
@@ -63,6 +65,7 @@ The anon key is meant to be public. Row Level Security lets anyone read and post
 - `js/core.js`: saved data, schedule, opening-hours parser, alerts, gear, budget, taste
 - `js/services.js`: live data sources and the research pass
 - `js/ui.js`: screens and interactions
+- `js/ideas.js`: the trip idea generator
 - `sw.js`, `manifest.webmanifest`, `icons/`: install and offline support
 - `supabase.sql`, `config.js`: community feed
 - `v1/index.html`: the original desktop planner

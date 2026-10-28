@@ -15,7 +15,7 @@ create table if not exists public.adventures (
   tips        text check (char_length(tips) <= 1000),
   budget      numeric check (budget >= 0 and budget < 100000),
   family_ages int[] default '{}',
-  photo       text check (photo is null or photo like 'https://upload.wikimedia.org/%'),
+  photo       text check (photo is null or photo like 'https://upload.wikimedia.org/%' or photo like 'https://commons.wikimedia.org/%'),
   stops       jsonb not null default '[]' check (jsonb_typeof(stops) = 'array' and jsonb_array_length(stops) <= 30),
   main_index  int default 0
 );

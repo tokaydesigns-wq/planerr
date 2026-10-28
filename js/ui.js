@@ -40,10 +40,10 @@ const whenLabel = adv => {
 // ---------- render ----------
 function render() {
   const { view, id } = parseRoute();
-  const screens = { home, new: () => formScreen(null), edit: () => formScreen(id), a: () => detail(id), brief: () => briefing(id), live: () => live(id), rate: () => rateScreen(id), explore: () => explore(id), family, you };
+  const screens = { home, ideas: ideasScreen, new: () => formScreen(null), edit: () => formScreen(id), a: () => detail(id), brief: () => briefing(id), live: () => live(id), rate: () => rateScreen(id), explore: () => explore(id), family, you };
   const fn = screens[view] || home;
   $('#app').innerHTML = fn();
-  const tab = { new: 'new', edit: 'new', explore: 'explore', family: 'family', you: 'you' }[view] || 'home';
+  const tab = { new: 'new', edit: 'new', ideas: 'new', explore: 'explore', family: 'family', you: 'you' }[view] || 'home';
   $$('#tabbar a').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));
   $('#tabbar').hidden = view === 'brief';
   afterRender(view, id);
@@ -94,6 +94,7 @@ function home() {
   const wx = next && wxDay(next);
   return `<div class="screen">
     <header class="greet"><span class="eyebrow">${fmtDate(todayStr(), { weekday: 'long', month: 'long', day: 'numeric' })}</span><h1>${hi}${name ? ', ' + esc(name) : ''}.</h1></header>
+    <a class="idea-cta" href="#/ideas"><span class="e">✨</span><span><b>Get 3 trip ideas</b><small>Set how far you'll drive and what you like. Planerr builds the plans.</small></span><span class="go">→</span></a>
     ${next ? `
       <a class="hero tall" href="#/a/${next.id}" style="text-decoration:none">
         ${heroMedia(next)}
@@ -162,6 +163,7 @@ function formScreen(id) {
   };
   return `<div class="screen">
     <div class="topbar"><a class="icon-btn" href="${id ? '#/a/' + id : '#/'}" aria-label="Back">${I.back}</a><h1>${id ? 'Edit adventure' : 'New adventure'}</h1></div>
+    ${id ? '' : `<a class="idea-cta" href="#/ideas"><span class="e">✨</span><span><b>Not sure where to go?</b><small>Get 3 ready-made plans within your drive time.</small></span><span class="go">→</span></a>`}
 
     <section class="card">
       <h2>What kind of day?</h2>
@@ -211,7 +213,8 @@ function formScreen(id) {
 
 function applyPick(key, p) {
   const d = ui.draft;
-  if (key === 'origin') d.origin = p;
+  if (key === 'idea-origin') { ideaPrefs().origin = p; save(); }
+  else if (key === 'origin') d.origin = p;
   else if (key === 'dest') {
     d.stops.forEach(s => { s.main = false; });
     d.stops.push(newStop({ name: p.label, place: p, cat: TYPES[d.type].cat, dur: d.type === 'hike' ? 180 : d.type === 'themepark' ? 300 : 120, main: true }));
@@ -371,7 +374,7 @@ function ticketsCard(adv) {
 }
 
 function nearbyCard(adv) {
-  const n = (adv.research?.nearby || []).filter(x => x.title !== adv.research?.photo?.title).slice(0, 10);
+  const n = (adv.research?.nearby || []).filter(x => x.title !== adv.research?.photo?.title && !SIGHT_BAD.test(x.title + ' ' + x.text.slice(0, 160))).slice(0, 10);
   if (!n.length) return ui.busy[adv.id] ? `<section class="card" id="explore"><h2>Worth a look nearby</h2>${stepBadge(adv.id, 'photos', 'Finding photos…')}</section>` : '';
   return `<section class="card" id="explore"><h2>Worth a look nearby</h2>
     <div class="gallery">${n.map(x => `<a class="g-item" href="${esc(x.url)}" target="_blank" rel="noopener"><img src="${esc(x.img)}" alt="${esc(x.title)}" loading="lazy"><div><b>${esc(x.title)}</b><span class="small muted">${esc(x.text.slice(0, 110))}${x.text.length > 110 ? '…' : ''}</span></div></a>`).join('')}</div>
@@ -697,7 +700,9 @@ document.addEventListener('click', async e => {
       el.disabled = true; el.textContent = 'Finding you…';
       navigator.geolocation.getCurrentPosition(async pos => {
         const { latitude: lat, longitude: lon } = pos.coords;
-        try { d.origin = await API.reverse(lat, lon); } catch (err) { d.origin = { label: 'My location', sub: '', lat, lon, osm: null }; }
+        let here;
+        try { here = await API.reverse(lat, lon); } catch (err) { here = { label: 'My location', sub: '', lat, lon, osm: null }; }
+        if (el.dataset.target === 'idea') { ideaPrefs().origin = here; save(); } else d.origin = here;
         keepScroll();
       }, () => { toast('Couldn’t get your location. Type an address instead.'); el.disabled = false; el.textContent = '◎ Use my location'; }, { timeout: 10000 });
       return;
@@ -890,7 +895,8 @@ function staleCheck() {
   });
 }
 staleCheck();
-render();
+// Wait for every script (ideas.js adds a screen) before the first render.
+document.addEventListener('DOMContentLoaded', render);
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('sw.js').catch(() => {});

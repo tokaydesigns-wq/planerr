@@ -75,6 +75,7 @@ img { max-width: 100%; display: block; }
 .tabbar a.on { color: var(--coral); }
 .tabbar .tab-new { justify-self: center; width: 56px; height: 56px; border-radius: 18px; background: var(--coral); color: var(--coral-ink); place-content: center; box-shadow: 0 6px 18px rgba(255, 90, 54, .4); transform: translateY(-10px); padding: 0; }
 .tabbar .tab-new svg { width: 28px; height: 28px; stroke-width: 2.6; }
+.tabbar .tab-new.on { color: var(--coral-ink); }
 
 /* ---------- buttons & inputs ---------- */
 .btn {
@@ -304,4 +305,16 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--c
 @keyframes spin { to { transform: rotate(360deg); } }
 .example-flag { background: var(--sun); color: #2A1A00; }
 .note { font-size: .78rem; color: var(--muted); }
+
+/* trip ideas */
+.idea-cta { display: grid; grid-template-columns: 44px 1fr auto; gap: 12px; align-items: center; padding: 14px 16px; border-radius: 20px; text-decoration: none; color: #1D0E05; background: linear-gradient(120deg, var(--coral), var(--sun)); box-shadow: 0 8px 22px rgba(255, 90, 54, .28); }
+.idea-cta .e { width: 44px; height: 44px; border-radius: 14px; background: rgba(255,255,255,.55); display: grid; place-items: center; font-size: 1.4rem; }
+.idea-cta b { display: block; font-family: var(--display); font-size: 1.12rem; }
+.idea-cta small { display: block; font-size: .84rem; opacity: .85; }
+.idea-cta .go { font-size: 1.4rem; font-weight: 800; }
+.idea { background: var(--surface); border-radius: 26px; overflow: hidden; box-shadow: var(--shadow); display: grid; }
+.idea .hero { border-radius: 0; }
+.idea-body { padding: 16px 18px 18px; display: grid; gap: 12px; min-width: 0; }
+.drive-val b { font-family: var(--display); font-size: 1.8rem; font-weight: 800; color: var(--coral); }
+input[type=range] { width: 100%; accent-color: var(--coral); height: 28px; }
 details summary { cursor: pointer; font-weight: 700; }

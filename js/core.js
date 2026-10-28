@@ -138,14 +138,14 @@ function seedState() {
     review: 'Tide pools at low tide were the highlight. The boardwalk gets busy after 2 PM.',
     tips: 'Check the tide chart and go to Natural Bridges at low tide.',
   });
-  return { profile: { name: '', units: defaultUnits(), diet: [], taste: {} }, family: { kids: [] }, adventures: [upcoming, past], seen: {} };
+  return { profile: { name: '', units: defaultUnits(), diet: [], taste: {}, likes: [] }, family: { kids: [] }, adventures: [upcoming, past], seen: {} };
 }
 
 function loadState() {
   try {
     const s = JSON.parse(localStorage.getItem(STORE));
     if (s && Array.isArray(s.adventures)) {
-      s.profile = { name: '', units: defaultUnits(), diet: [], taste: {}, ...s.profile };
+      s.profile = { name: '', units: defaultUnits(), diet: [], taste: {}, likes: [], ...s.profile };
       s.family = s.family || { kids: [] };
       s.seen = s.seen || {};
       return s;
@@ -392,7 +392,8 @@ function bumpTaste(cuisines, by) {
 }
 function tasteScore(f) {
   const t = state.profile.taste;
-  let s = f.cuisine.reduce((a, c) => a + (t[c] || 0), 0) + (t['amenity:' + f.amenity] || 0) * .5;
+  const likes = state.profile.likes || [];
+  let s = f.cuisine.reduce((a, c) => a + (t[c] || 0) + (likes.includes(c) ? 4 : 0), 0) + (t['amenity:' + f.amenity] || 0) * .5;
   state.profile.diet.forEach(d => { if (f.diet[d] === 'yes' || f.diet[d] === 'only' || f.cuisine.includes(d)) s += 3; });
   return s;
 }
