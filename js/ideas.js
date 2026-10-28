@@ -19,9 +19,16 @@ const WD_TYPES = {
 // Nearby Wikipedia articles that make good extra stops, and ones that don't (events, schools, suburbs…).
 const SIGHT_OK = /park|trail|museum|lake|falls|waterfall|peak|mountain|historic|monument|garden|reservoir|canyon|beach|bridge|observatory|zoo|gallery|lighthouse|church|cathedral|mission|fort\b|castle|pier|wildlife|refuge|preserve|reserve|arboretum|winery|brewery|market|theat|landmark|tower|cave|springs|overlook|viewpoint|plaza|square|memorial|ranch|farm|mill|railroad|railway|depot|sculpture|aquarium|amphitheat|dam\b|rock|butte|mesa|arch/i;
 const SIGHT_BAD = /massacre|shooting|murder|disaster|crash|killed|bombing|riot|attack|school|college|university|census-designated|unincorporated|neighborhood|neighbourhood|subdivision|cemetery|airport|interchange|station\b|highway|interstate|\broute\b|hospital|prison|correctional|company|corporation|church of jesus|election|district\b|county\b/i;
+// Sights that usually charge admission or sell tours.
+const PAID_SIGHT = /museum|\bmine\b|gold mine|tour|zoo|aquarium|cave|cavern|railroad|railway|observatory|gallery|theat|castle|winery|brewery|amusement|gondola|tram\b|planetarium|wildlife park/i;
 const goodSight = n => !SIGHT_BAD.test(n.title + ' ' + n.text.slice(0, 160)) && SIGHT_OK.test(n.title + ' ' + n.text.slice(0, 160));
 const IDEA_DUR = { hike: 180, beach: 180, lake: 150, park: 150, city: 120, themepark: 360, museum: 150, food: 60, roadtrip: 60, snow: 300 };
 const IDEA_COST = { hike: 5, beach: 5, lake: 5, park: 10, city: 0, themepark: 90, museum: 25, food: 0, roadtrip: 0, snow: 110 };
+const IDEA_PRICE = {
+  hike: 'Parking or trailhead fee', beach: 'Parking', lake: 'Day-use or parking fee', park: 'Entry or parking',
+  city: 'Free to wander. You only pay for what you buy', themepark: 'Day ticket (check the official site for today’s price)', museum: 'Admission',
+  food: 'Free to wander. Food is priced below', roadtrip: 'Free', snow: 'Lift ticket',
+};
 const IDEA_TITLE = {
   hike: n => `Hike ${n}`, beach: n => `Beach day at ${n}`, lake: n => `Lake day at ${n}`, park: n => `${n} nature day`,
   city: n => `Explore ${n}`, themepark: n => `Thrills at ${n}`, museum: n => `${n} & around`, food: n => `Food crawl in ${n}`,
@@ -134,7 +141,13 @@ function makePlan(inp, c, food, ex) {
   const kids = inp.familyMode ? state.family.kids.length : 0, people = inp.people + kids;
   const start = toMin(inp.start), window = toMin(inp.end) - start, drive = c.drive.min;
   const mainCat = c.type === 'food' || c.type === 'city' ? 'sight' : TYPES[c.type].cat;
-  const main = newStop({ name: c.name, cat: mainCat, main: true, dur: IDEA_DUR[c.type], cost: IDEA_COST[c.type] * people, place: { label: c.name, sub: '', lat: c.lat, lon: c.lon, osm: null } });
+  const who = `${people} ${people === 1 ? 'person' : 'people'}`;
+  const main = newStop({
+    name: c.name, cat: mainCat, main: true, dur: IDEA_DUR[c.type], cost: IDEA_COST[c.type] * people,
+    place: { label: c.name, sub: '', lat: c.lat, lon: c.lon, osm: null },
+    desc: ex.photo?.text || '', photo: ex.photo?.img || null, url: ex.photo?.url || null,
+    priceNote: IDEA_COST[c.type] ? `${IDEA_PRICE[c.type]}: about ${money(IDEA_COST[c.type])} per person × ${who}` : IDEA_PRICE[c.type],
+  });
 
   const near = food.filter(f => haversine(f, c) < 6).map(f => ({ ...f, s: tasteScore(f) + (f.cuisine.length ? 0.3 : 0) - haversine(f, c) / 8 })).sort((a, b) => b.s - a.s);
   const foods = [];
@@ -142,21 +155,33 @@ function makePlan(inp, c, food, ex) {
     if (foods.length === 4) break;
     if (!foods.some(p => p.cuisine[0] && p.cuisine[0] === f.cuisine[0])) foods.push(f);
   }
-  const foodStop = (f, dur) => newStop({
-    name: f.name, cat: 'food', dur, cost: (f.amenity === 'restaurant' ? 22 : 10) * people, cuisine: f.cuisine,
-    place: { label: f.name, sub: f.cuisine.map(x => cuisineInfo(x)[0]).join(', '), lat: f.lat, lon: f.lon, osm: f.id },
-  });
-  const sights = (ex.nearby || []).filter(n => n.title !== c.name && n.title !== ex.photo?.title && goodSight(n) && haversine(n, c) > 0.3 && haversine(n, c) < 15);
+  const foodStop = (f, dur) => {
+    const each = f.amenity === 'restaurant' ? 22 : f.amenity === 'pub' ? 20 : 10;
+    return newStop({
+      name: f.name, cat: 'food', dur, cost: each * people, cuisine: f.cuisine,
+      place: { label: f.name, sub: f.cuisine.map(x => cuisineInfo(x)[0]).join(', '), lat: f.lat, lon: f.lon, osm: f.id },
+      meta: { amenity: f.amenity, hours: f.hours, website: f.website, diet: f.diet, outdoor: f.outdoor, takeaway: f.takeaway },
+      priceNote: `${f.amenity === 'restaurant' ? 'Sit-down meal' : f.amenity === 'pub' ? 'Pub meal' : 'Quick bite or café'}: about ${money(each)} per person × ${who}`,
+    });
+  };
+  const sights = (ex.nearby || []).filter(n => n.title !== c.name && n.title !== ex.photo?.title && goodSight(n) && haversine(n, c) > 0.05 && haversine(n, c) < 15);
 
   const stops = [main];
   const used = () => drive * 2 + stops.reduce((a, s) => a + s.dur, 0) + (stops.length - 1) * 10;
   // Without restaurant data (map server busy), keep a lunch slot; the saved plan fills in real places.
   if (foods[0]) stops.push(foodStop(foods[0], 60));
-  else stops.push(newStop({ name: `Lunch near ${c.name}`, cat: 'food', dur: 60, cost: 18 * people, tip: 'Open the saved plan for restaurant picks that match your taste.' }));
+  else stops.push(newStop({ name: `Lunch near ${c.name}`, cat: 'food', dur: 60, cost: 18 * people, tip: 'Open the saved plan for restaurant picks that match your taste.', priceNote: `Lunch: about $18 per person × ${who}` }));
   if (c.type === 'food') foods.slice(1, 3).forEach(f => stops.push(foodStop(f, 30)));
   for (const n of sights.slice(0, 5)) {
     if (used() + 50 > window - 40) break;
-    stops.push(newStop({ name: n.title, cat: 'sight', dur: 40, tip: (n.text.split(/(?<=\.)\s/)[0] || '').slice(0, 140), place: { label: n.title, sub: '', lat: n.lat, lon: n.lon, osm: null } }));
+    const paid = PAID_SIGHT.test(n.title + ' ' + n.text.slice(0, 200));
+    stops.push(newStop({
+      name: n.title, cat: paid ? 'fun' : 'sight', dur: paid ? 60 : 40, tip: (n.text.split(/(?<=\.)\s/)[0] || '').slice(0, 140),
+      cost: paid ? 15 * people : 0,
+      place: { label: n.title, sub: '', lat: n.lat, lon: n.lon, osm: null },
+      desc: n.text, photo: n.img, url: n.url,
+      priceNote: paid ? `Admission or tour likely: about $15 per person × ${who} (check the official site)` : 'Usually free to see. Some sights charge entry, so check before you go.',
+    }));
   }
   // Leave room for dinner when the day runs into the evening, then stretch the main stop into the free time.
   const dinner = foods.find(f => !stops.some(s => s.place?.osm === f.id) && !['cafe', 'ice_cream'].includes(f.amenity));
@@ -185,7 +210,7 @@ function makePlan(inp, c, food, ex) {
   const match = stops.find(s => s.cuisine?.some(liked));
   if (match) { const k = match.cuisine.find(liked); reasons.push(`${cuisineInfo(k)[1]} ${cuisineInfo(k)[0]} you like`); }
   if (inp.familyMode && kids) reasons.push('👨‍👩‍👧 Family mode');
-  return { adv, type: c.type, drive, km: c.drive.km, wx: c.wx, times, home: cur + drive, cost, reasons, overBudget: inp.budget && cost > inp.budget, noFood: !food.length };
+  return { adv, type: c.type, drive, km: c.drive.km, wx: c.wx, times, home: cur + drive, cost, fuel, reasons, overBudget: inp.budget && cost > inp.budget, noFood: !food.length, wiki: c.wiki, wdImage: c.image };
 }
 
 async function generateIdeas(shuffle) {
@@ -234,6 +259,8 @@ async function generateIdeas(shuffle) {
     }));
     run.plans = picks.map((c, i) => makePlan(inp, c, food, extras[i]));
     run.status = 'done';
+    state.lastIdeas = { plans: run.plans, key, date: inp.date };
+    save();
     run.note = picks.length < 3 ? `Only ${picks.length} place${picks.length > 1 ? 's' : ''} fit. A longer drive or more kinds of day will give you more options.` : '';
   } catch (e) {
     run.status = 'error';
@@ -242,14 +269,19 @@ async function generateIdeas(shuffle) {
   if (ui.ideas === run && parseRoute().view === 'ideas') { renderIdeasResults(); $('#idea-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
 }
 
+// Plans from the last run survive a reload, so a plan's detail page can be reopened.
+function restoreIdeas() {
+  if (!ui.ideas && state.lastIdeas?.plans?.length) ui.ideas = { status: 'done', plans: state.lastIdeas.plans, key: state.lastIdeas.key, seen: new Set(), cands: null };
+}
+
 function ideaCard(p, i) {
   const a = p.adv, photo = a.research.photo;
   return `<article class="idea">
-    <div class="hero flat">
+    <a class="hero flat" href="#/idea/${i}" aria-label="See photos and details for ${esc(a.title)}">
       ${photo?.img ? `<img src="${esc(photo.img)}" alt="">` : sceneSVG(a.type)}
-      <div class="hero-top"><span class="pill coral">Plan ${i + 1}</span><span class="pill">${TYPES[a.type].e} ${TYPES[a.type].label}</span></div>
+      <div class="hero-top"><span class="pill coral">Plan ${i + 1}</span><span class="pill">${TYPES[a.type].e} ${TYPES[a.type].label}</span><span class="spacer"></span><span class="pill">📷 Photos & details</span></div>
       <div class="hero-body"><h2>${esc(a.title)}</h2></div>
-    </div>
+    </a>
     <div class="idea-body">
       <div class="row wrap">${p.reasons.map(r => `<span class="pill line">${esc(r)}</span>`).join('')}</div>
       ${photo?.text ? `<p class="small muted">${esc(photo.text.slice(0, 160))}${photo.text.length > 160 ? '…' : ''}</p>` : ''}
@@ -260,10 +292,146 @@ function ideaCard(p, i) {
       </div>
       ${p.noFood ? '<p class="small muted">The restaurant map is busy right now, so lunch is a placeholder. Save the plan and it fills in places that match your taste.</p>' : ''}
       <div class="row wrap small"><span>Est. <b>${money(p.cost)}</b>${p.overBudget ? ` <span class="pill warn">over your ${money(a.budget)}</span>` : ` <span class="pill good">within budget</span>`}</span></div>
-      ${p.saved ? `<a class="btn dark block" href="#/a/${a.id}">Saved · Open plan</a>` : `<button class="btn primary block" data-act="idea-save" data-i="${i}">Save this plan</button>`}
+      <div class="row"><a class="btn" style="flex:1" href="#/idea/${i}">See photos & details</a>
+      ${p.saved ? `<a class="btn dark" style="flex:1" href="#/a/${a.id}">Saved · Open</a>` : `<button class="btn primary" style="flex:1" data-act="idea-save" data-i="${i}">Save this plan</button>`}</div>
     </div>
   </article>`;
 }
+
+// ---------- plan detail: photo gallery, descriptions, price per stop ----------
+const ideaLoading = new Set();
+const photoKey = url => decodeURIComponent(url.split('?')[0].replace(/^.*\//, '')).replace(/^\d+px-/, '').replace(/_/g, ' ').toLowerCase();
+
+async function loadIdeaExtras(p) {
+  if (p.gallery || ideaLoading.has(p)) return;
+  ideaLoading.add(p);
+  const main = p.adv.stops.find(s => s.main);
+  const [imgs, about] = await Promise.all([
+    p.wiki ? API.wikiImages(p.wiki).catch(() => []) : [],
+    p.wiki ? API.wikiPage(p.wiki, 8, false).catch(() => null) : null,
+  ]);
+  const slides = [], keys = new Set();
+  const add = (img, caption, credit, page) => {
+    if (!img) return;
+    const k = photoKey(img);
+    if (keys.has(k)) return;
+    keys.add(k); slides.push({ img, caption, credit, page });
+  };
+  const photo = p.adv.research.photo;
+  if (photo?.img) add(photo.img, main.name, 'Wikipedia', photo.url);
+  imgs.forEach(x => add(x.img, x.caption || main.name, x.credit, x.page));
+  if (p.wdImage) add(p.wdImage, main.name, 'Wikimedia Commons', null);
+  p.adv.stops.filter(s => !s.main && s.photo).forEach(s => add(s.photo, s.name, 'Wikipedia', s.url));
+  (p.adv.research.nearby || []).filter(goodSight).slice(0, 6).forEach(n => add(n.img, n.title, 'Wikipedia', n.url));
+  p.gallery = slides;
+  if (about?.text && about.text.length > (main.desc || '').length) { main.desc = about.text; main.url = about.url; }
+  ideaLoading.delete(p);
+  save();
+  const r = parseRoute();
+  if (r.view === 'idea' && ui.ideas?.plans?.[+r.id] === p) { const y = window.scrollY; render(); window.scrollTo(0, y); }
+}
+
+function foodDesc(s, date) {
+  const m = s.meta || {}, kind = (AMENITY_FOOD[m.amenity] || ['Restaurant'])[0].toLowerCase();
+  const cuis = (s.cuisine || []).map(c => cuisineInfo(c)[0]);
+  const diets = Object.entries(m.diet || {}).filter(([, v]) => v === 'yes' || v === 'only').map(([k]) => DIETS[k].toLowerCase());
+  const lead = `${cuis.length ? cuis.join(' & ') + ' ' : ''}${kind}`;
+  let t = lead[0].toUpperCase() + lead.slice(1) + (diets.length ? ` with ${diets.join(' and ')} options` : '') + '.';
+  if (m.outdoor === 'yes') t += ' Has outdoor seating.';
+  if (m.takeaway === 'yes') t += ' Does takeout.';
+  if (m.hours) {
+    const h = hoursOn(m.hours, date);
+    t += h.status === 'open' ? ` Open ${h.text} that day.` : h.status === 'closed' ? ' Listed as closed that day, so check before you go.' : ` Hours: ${m.hours}.`;
+  }
+  const likes = state.profile.likes || [];
+  if ((s.cuisine || []).some(c => likes.includes(c) || (state.profile.taste[c] || 0) > 0)) t += ' Matches food you like.';
+  return t;
+}
+
+function stopDetail(p, s, j) {
+  const a = p.adv;
+  const desc = s.cat === 'food' && s.meta ? foodDesc(s, a.date) : s.desc || s.tip || (s.main ? `${TYPES[a.type].label} destination about ${fmtDur(p.drive)} from ${a.origin.label}.` : '');
+  const link = s.meta?.website ? [s.meta.website, 'Website'] : s.url ? [s.url, 'Read more'] : null;
+  return `<div class="stop-detail">
+    <div class="sd-head">
+      <span class="sd-time">${fmtTime(p.times[j])}</span>
+      <div class="sd-name"><b>${s.main ? '⭐' : CATS[s.cat].e} ${esc(s.name)}</b><span class="small muted">${fmtDur(s.dur)} · ${CATS[s.cat].label}</span></div>
+      <span class="sd-price ${s.cost ? '' : 'free'}">${s.cost ? money(s.cost) : 'Free'}</span>
+    </div>
+    ${s.photo && !s.main ? `<img class="sd-img" src="${esc(s.photo)}" alt="${esc(s.name)}" loading="lazy">` : ''}
+    ${desc ? `<p>${esc(desc)}</p>` : ''}
+    ${s.priceNote ? `<p class="small muted">💵 ${esc(s.priceNote)}</p>` : ''}
+    <div class="row wrap">${s.place ? `<a class="pill line" href="${mapsDir(s.place)}" target="_blank" rel="noopener">Directions ↗</a>` : ''}${link ? `<a class="pill line" href="${esc(link[0])}" target="_blank" rel="noopener">${link[1]} ↗</a>` : ''}</div>
+  </div>`;
+}
+
+function ideaDetail(i) {
+  restoreIdeas();
+  const p = ui.ideas?.plans?.[+i];
+  if (!p) return `<div class="screen"><div class="empty">This plan isn’t available anymore. Generate new ideas to see more.<a class="btn" href="#/ideas">Back to ideas</a></div></div>`;
+  const a = p.adv, main = a.stops.find(s => s.main);
+  const slides = p.gallery || (a.research.photo?.img ? [{ img: a.research.photo.img, caption: main.name, credit: 'Wikipedia', page: a.research.photo.url }] : []);
+  const stopsTotal = a.stops.reduce((t, s) => t + s.cost, 0), fuel = p.fuel ?? Math.max(0, p.cost - stopsTotal);
+  return `<div class="screen">
+    <div class="topbar"><a class="icon-btn" href="#/ideas" aria-label="Back to ideas">${I.back}</a><h1 style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Plan ${+i + 1}</h1><span class="pill line">${TYPES[a.type].e} ${TYPES[a.type].label}</span></div>
+
+    <div class="carousel-wrap">
+      ${slides.length ? `<div class="carousel" id="car" tabindex="0" aria-label="Photos of ${esc(main.name)}">${slides.map((s, k) => `
+        <figure class="slide"><img src="${esc(s.img)}" alt="${esc(s.caption || main.name)}" ${k ? 'loading="lazy"' : ''}>
+          <figcaption><span>${esc(s.caption || '')}</span>${s.credit ? `<small>${s.page ? `<a href="${esc(s.page)}" target="_blank" rel="noopener">${esc(s.credit)}</a>` : esc(s.credit)}</small>` : ''}</figcaption></figure>`).join('')}</div>
+        ${slides.length > 1 ? `<button class="car-btn prev" data-act="car" data-d="-1" aria-label="Previous photo">‹</button><button class="car-btn next" data-act="car" data-d="1" aria-label="Next photo">›</button><span class="car-count" id="car-count">1 / ${slides.length}</span>` : ''}`
+        : `<div class="hero flat">${sceneSVG(a.type)}</div>`}
+    </div>
+    ${!p.gallery ? '<span class="loading"><span class="spin"></span>Loading more photos…</span>' : slides.length > 1 ? '<p class="note" style="margin-top:-10px">Swipe for more photos.</p>' : ''}
+
+    <div class="stack" style="gap:8px">
+      <h1>${esc(a.title)}</h1>
+      <div class="row wrap">${p.reasons.map(r => `<span class="pill line">${esc(r)}</span>`).join('')}</div>
+    </div>
+
+    <section class="card">
+      <h2>About ${esc(main.name)}</h2>
+      <p>${esc(main.desc || `${TYPES[a.type].label} destination about ${fmtDur(p.drive)} from ${a.origin.label}.`)}</p>
+      ${main.url ? `<a class="small" href="${esc(main.url)}" target="_blank" rel="noopener">Read more on Wikipedia ↗</a>` : ''}
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>Stop by stop</h2><span class="muted small">${fmtTime(toMin(a.start))} – ${fmtTime(p.home)}</span></div>
+      <div class="stop-detail"><div class="sd-head"><span class="sd-time">${fmtTime(toMin(a.start))}</span><div class="sd-name"><b>🚗 Leave ${esc(a.origin.label)}</b><span class="small muted">${fmtDur(p.drive)} drive · ${dist(p.km)}</span></div><span class="sd-price">${money(fuel / 2)}</span></div><p class="small muted">💵 Fuel each way, estimated at 27 mpg and $3.60 a gallon</p></div>
+      ${a.stops.map((s, j) => stopDetail(p, s, j)).join('')}
+      <div class="stop-detail"><div class="sd-head"><span class="sd-time">${fmtTime(p.home)}</span><div class="sd-name"><b>🏠 Back home</b><span class="small muted">${fmtDur(p.drive)} drive</span></div><span class="sd-price">${money(fuel / 2)}</span></div></div>
+    </section>
+
+    <section class="card">
+      <h2>Cost breakdown</h2>
+      <div class="costs">
+        ${a.stops.map(s => `<div><span>${esc(s.name)}</span><b>${s.cost ? money(s.cost) : 'Free'}</b></div>`).join('')}
+        <div><span>Fuel, round trip (${dist(p.km * 2)})</span><b>${money(fuel)}</b></div>
+        <div class="total"><span>Estimated total</span><b>${money(p.cost)}</b></div>
+        ${a.budget ? `<div class="${p.overBudget ? 'over' : 'under'}"><span>Your budget</span><b>${money(a.budget)} · ${p.overBudget ? money(p.cost - a.budget) + ' over' : money(a.budget - p.cost) + ' left'}</b></div>` : ''}
+      </div>
+      <p class="note">Prices are estimates for ${a.people + (a.familyMode ? state.family.kids.length : 0)} people. Check official sites for exact admission and menus.</p>
+    </section>
+
+    <div class="sticky-cta">${p.saved ? `<a class="btn dark" href="#/a/${a.id}">Saved · Open plan</a>` : `<button class="btn primary" data-act="idea-save" data-i="${i}">Save this plan</button>`}</div>
+  </div>`;
+}
+
+function setupIdeaDetail(i) {
+  restoreIdeas();
+  const p = ui.ideas?.plans?.[+i];
+  if (!p) return;
+  loadIdeaExtras(p);
+  const car = $('#car'), count = $('#car-count');
+  if (car && count) car.addEventListener('scroll', () => { count.textContent = `${Math.round(car.scrollLeft / car.clientWidth) + 1} / ${car.children.length}`; }, { passive: true });
+}
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act="car"]');
+  if (!b) return;
+  const car = $('#car');
+  car?.scrollBy({ left: +b.dataset.d * car.clientWidth, behavior: 'smooth' });
+});
 
 function renderIdeasResults() {
   const box = $('#idea-results');
@@ -286,6 +454,7 @@ function ideasResultsHTML() {
 }
 
 function ideasScreen() {
+  restoreIdeas();
   const p = ideaPrefs(), kids = state.family.kids, likes = state.profile.likes || [];
   const di = Math.max(0, DRIVE_STEPS.indexOf(p.maxDrive));
   return `<div class="screen">
@@ -355,8 +524,9 @@ document.addEventListener('click', async e => {
       $$('[data-act="idea-go"]').forEach(b => { b.disabled = false; });
       return;
     case 'idea-save': {
+      restoreIdeas();
       const plan = ui.ideas.plans[+el.dataset.i], adv = plan.adv;
-      if (!state.adventures.includes(adv)) { refreshPacking(adv); state.adventures.push(adv); }
+      if (!state.adventures.some(a => a.id === adv.id)) { const copy = JSON.parse(JSON.stringify(adv)); refreshPacking(copy); state.adventures.push(copy); }
       plan.saved = true; save();
       go('a/' + adv.id); toast('Plan saved. Researching hours, tickets and gear…');
       return;

@@ -317,4 +317,36 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--c
 .idea-body { padding: 16px 18px 18px; display: grid; gap: 12px; min-width: 0; }
 .drive-val b { font-family: var(--display); font-size: 1.8rem; font-weight: 800; color: var(--coral); }
 input[type=range] { width: 100%; accent-color: var(--coral); height: 28px; }
+a.hero { display: block; text-decoration: none; }
+
+/* plan detail: photo carousel, stops, costs */
+.carousel-wrap { position: relative; margin: 0 -16px; }
+.carousel { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }
+.carousel::-webkit-scrollbar { display: none; }
+.slide { flex: 0 0 100%; scroll-snap-align: center; margin: 0; display: grid; }
+.slide img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: var(--surface-2); }
+.slide figcaption { display: grid; gap: 2px; padding: 8px 16px 0; font-size: .86rem; min-height: 2.6em; }
+.slide figcaption small { color: var(--muted); font-size: .72rem; }
+.slide figcaption a { color: inherit; }
+.car-btn { position: absolute; top: calc(37.5vw - 22px); max-height: 100%; width: 44px; height: 44px; border-radius: 50%; border: 0; background: rgba(255,255,255,.88); color: #13241F; font-size: 1.6rem; line-height: 1; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,.2); }
+.car-btn.prev { left: 12px; }
+.car-btn.next { right: 12px; }
+@media (min-width: 632px) { .car-btn { top: 203px; } }
+.car-count { position: absolute; top: 12px; right: 12px; background: rgba(0,0,0,.6); color: #fff; font-size: .78rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; font-variant-numeric: tabular-nums; }
+@media (min-width: 632px) { .carousel-wrap { margin: 0; border-radius: 22px; overflow: hidden; } }
+.stop-detail { display: grid; gap: 8px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.stop-detail:last-child { border-bottom: 0; }
+.sd-head { display: grid; grid-template-columns: 66px 1fr auto; gap: 10px; align-items: start; }
+.sd-time { font-weight: 700; font-size: .86rem; font-variant-numeric: tabular-nums; padding-top: 2px; }
+.sd-name { display: grid; gap: 2px; min-width: 0; }
+.sd-price { font-family: var(--display); font-weight: 800; font-size: 1.1rem; font-variant-numeric: tabular-nums; }
+.sd-price.free { color: var(--good); }
+.sd-img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 14px; }
+.costs { display: grid; }
+.costs > div { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.costs > div span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.costs > div b { white-space: nowrap; }
+.costs .total { font-size: 1.1rem; border-bottom: 0; }
+.costs .over { color: var(--bad); border-bottom: 0; }
+.costs .under { color: var(--good); border-bottom: 0; }
 details summary { cursor: pointer; font-weight: 700; }

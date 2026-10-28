@@ -40,10 +40,10 @@ const whenLabel = adv => {
 // ---------- render ----------
 function render() {
   const { view, id } = parseRoute();
-  const screens = { home, ideas: ideasScreen, new: () => formScreen(null), edit: () => formScreen(id), a: () => detail(id), brief: () => briefing(id), live: () => live(id), rate: () => rateScreen(id), explore: () => explore(id), family, you };
+  const screens = { home, ideas: ideasScreen, idea: () => ideaDetail(id), new: () => formScreen(null), edit: () => formScreen(id), a: () => detail(id), brief: () => briefing(id), live: () => live(id), rate: () => rateScreen(id), explore: () => explore(id), family, you };
   const fn = screens[view] || home;
   $('#app').innerHTML = fn();
-  const tab = { new: 'new', edit: 'new', ideas: 'new', explore: 'explore', family: 'family', you: 'you' }[view] || 'home';
+  const tab = { new: 'new', edit: 'new', ideas: 'new', idea: 'new', explore: 'explore', family: 'family', you: 'you' }[view] || 'home';
   $$('#tabbar a').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));
   $('#tabbar').hidden = view === 'brief';
   afterRender(view, id);
@@ -54,6 +54,7 @@ function afterRender(view, id) {
   const adv = id && advById(id);
   if ((view === 'a' || view === 'brief') && adv && !adv.research?.at && !ui.busy[id]) runResearch(adv);
   if (view === 'explore' && !ui.community && !ui.loadingCommunity) loadCommunity();
+  if (view === 'idea') setupIdeaDetail(id);
 }
 
 async function runResearch(adv) {

@@ -125,13 +125,30 @@ const API = {
     }));
   },
 
-  async wikiPage(ref) {
+  async wikiPage(ref, sentences = 3, needImage = true) {
     const [lang, title] = ref.includes(':') ? [ref.slice(0, ref.indexOf(':')), ref.slice(ref.indexOf(':') + 1)] : ['en', ref];
     const d = await getJSON(`https://${lang}.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1&titles=${encodeURIComponent(title)}`
-      + '&prop=pageimages|extracts&piprop=thumbnail&pithumbsize=1200&exintro=1&explaintext=1&exsentences=3');
+      + `&prop=pageimages|extracts&piprop=thumbnail&pithumbsize=1200&exintro=1&explaintext=1&exsentences=${sentences}`);
     const pg = Object.values(d.query?.pages || {})[0];
-    if (!pg?.thumbnail) return null;
-    return { title: pg.title, img: pg.thumbnail.source, text: pg.extract || '', url: `https://${lang}.wikipedia.org/?curid=${pg.pageid}` };
+    if (!pg || pg.missing !== undefined || (needImage && !pg.thumbnail)) return null;
+    return { title: pg.title, img: pg.thumbnail?.source || null, text: pg.extract || '', url: `https://${lang}.wikipedia.org/?curid=${pg.pageid}` };
+  },
+
+  // The photos used in a Wikipedia article, skipping maps, logos, icons and diagrams.
+  async wikiImages(ref, limit = 14) {
+    const [lang, title] = ref.includes(':') ? [ref.slice(0, ref.indexOf(':')), ref.slice(ref.indexOf(':') + 1)] : ['en', ref];
+    const d = await getJSON(`https://${lang}.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1&titles=${encodeURIComponent(title)}`
+      + '&generator=images&gimlimit=50&prop=imageinfo&iiprop=url|mime|size|extmetadata&iiurlwidth=1000&iiextmetadatafilter=ImageDescription|Artist|LicenseShortName');
+    const strip = s => String(s || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim().replace(/^(.+?)\s*\1$/, '$1');
+    return Object.values(d.query?.pages || {})
+      .map(p => ({ name: p.title, info: p.imageinfo?.[0] }))
+      .filter(({ name, info }) => info && /jpeg|png/.test(info.mime) && info.width >= 500 && info.height >= 300
+        && !/logo|map|icon|flag|seal|locator|diagram|symbol|coat of arms|signature|sign\b|chart|graph|plan\b|location|relief|pictogram|banner|commons-|wikipedia|wiktionary|question/i.test(name))
+      .slice(0, limit)
+      .map(({ name, info }) => {
+        const m = info.extmetadata || {};
+        return { img: info.thumburl, caption: strip(m.ImageDescription?.value).slice(0, 140), credit: [strip(m.Artist?.value).slice(0, 60), m.LicenseShortName?.value].filter(Boolean).join(' · '), page: info.descriptionurl };
+      });
   },
 };
 
