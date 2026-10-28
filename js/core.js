@@ -33,6 +33,9 @@ const dist = km => {
 };
 const stars = n => `<span class="stars" aria-label="${n} out of 5 stars">${'★'.repeat(n)}<span class="off">${'★'.repeat(5 - n)}</span></span>`;
 const mapsDir = p => `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}`;
+// Opens Google Maps searched for the place by name, centred on its spot, so the listing with its reviews comes up first.
+const mapsReviews = (name, p) => `https://www.google.com/maps/search/${encodeURIComponent(name)}/@${(+p.lat).toFixed(5)},${(+p.lon).toFixed(5)},17z`;
+const reviewsLink = (name, p, cls = 'pill line') => `<a class="${cls} g-reviews" href="${mapsReviews(name, p)}" target="_blank" rel="noopener"><span class="g-star">★</span> Google reviews ↗</a>`;
 const mapsSearch = q => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
 
 // ---------- adventure types ----------

@@ -170,7 +170,7 @@ function makePlan(inp, c, food, ex) {
   const used = () => drive * 2 + stops.reduce((a, s) => a + s.dur, 0) + (stops.length - 1) * 10;
   // Without restaurant data (map server busy), keep a lunch slot; the saved plan fills in real places.
   if (foods[0]) stops.push(foodStop(foods[0], 60));
-  else stops.push(newStop({ name: `Lunch near ${c.name}`, cat: 'food', dur: 60, cost: 18 * people, tip: 'Open the saved plan for restaurant picks that match your taste.', priceNote: `Lunch: about $18 per person × ${who}` }));
+  else stops.push(newStop({ name: `Lunch near ${c.name}`, cat: 'food', dur: 60, cost: 18 * people, tip: 'Open the saved plan for restaurant picks that match your taste.', searchNear: { lat: c.lat, lon: c.lon }, priceNote: `Lunch: about $18 per person × ${who}` }));
   if (c.type === 'food') foods.slice(1, 3).forEach(f => stops.push(foodStop(f, 30)));
   for (const n of sights.slice(0, 5)) {
     if (used() + 50 > window - 40) break;
@@ -361,7 +361,7 @@ function stopDetail(p, s, j) {
     ${s.photo && !s.main ? `<img class="sd-img" src="${esc(s.photo)}" alt="${esc(s.name)}" loading="lazy">` : ''}
     ${desc ? `<p>${esc(desc)}</p>` : ''}
     ${s.priceNote ? `<p class="small muted">💵 ${esc(s.priceNote)}</p>` : ''}
-    <div class="row wrap">${s.place ? `<a class="pill line" href="${mapsDir(s.place)}" target="_blank" rel="noopener">Directions ↗</a>` : ''}${link ? `<a class="pill line" href="${esc(link[0])}" target="_blank" rel="noopener">${link[1]} ↗</a>` : ''}</div>
+    <div class="row wrap">${s.place ? `<a class="pill line" href="${mapsDir(s.place)}" target="_blank" rel="noopener">Directions ↗</a>` : ''}${link ? `<a class="pill line" href="${esc(link[0])}" target="_blank" rel="noopener">${link[1]} ↗</a>` : ''}${s.cat === 'food' && s.place ? reviewsLink(s.name, s.place) : s.searchNear ? `<a class="pill line g-reviews" href="${mapsReviews('restaurants', s.searchNear)}" target="_blank" rel="noopener"><span class="g-star">★</span> Restaurants & reviews nearby ↗</a>` : ''}</div>
   </div>`;
 }
 
@@ -443,7 +443,7 @@ function ideasResultsHTML() {
   if (!run) return '';
   if (run.status === 'running') {
     const order = ['places', 'drive', 'weather', 'food', 'photos'], at = order.indexOf(run.step);
-    return `<section class="card"><h2>Building your plans…</h2><div class="list">${order.map((s, i) => `<div class="li" style="grid-template-columns:28px 1fr">${i < at ? '<span class="pill good">✓</span>' : i === at ? '<span class="spin"></span>' : '<span class="muted">·</span>'}<span class="${i > at ? 'muted' : ''}">${STEP_LABELS[s](inp)}</span></div>`).join('')}</div></section>`;
+    return `<section class="card"><div class="drive-anim">${pip('happy', 'bob')}<div class="mini-road"></div></div><h2>Building your plans…</h2><div class="list">${order.map((s, i) => `<div class="li" style="grid-template-columns:28px 1fr">${i < at ? '<span class="pill good">✓</span>' : i === at ? '<span class="spin"></span>' : '<span class="muted">·</span>'}<span class="${i > at ? 'muted' : ''}">${STEP_LABELS[s](inp)}</span></div>`).join('')}</div></section>`;
   }
   if (run.status === 'error') return `<div class="alert warn"><span class="ic">⚠️</span><span>${esc(run.msg)}</span></div>`;
   return `<div class="section-title"><h2>3 plans for ${fmtDate(inp.date, { weekday: 'long' })}</h2></div>

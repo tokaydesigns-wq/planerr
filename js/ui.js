@@ -28,7 +28,7 @@ function sceneSVG(type) {
     coaster: `<path d="M0 260v-60c70-30 130-20 200 0s130 10 200-20v80z" fill="${dark}"/><path d="M20 210c40-120 90-120 120-40s60-80 100-60 50 90 80 60 40-70 80-60" fill="none" stroke="#fff" stroke-width="5" opacity=".9"/><circle cx="260" cy="120" r="34" fill="none" stroke="#fff" stroke-width="5" opacity=".9"/>`,
     road: `<path d="M0 260v-90c60-30 130-30 200 0s140 20 200-10v100z" fill="${mid}"/><path d="M170 260l20-110h20l20 110z" fill="${dark}"/><path d="M200 160v14M200 186v18M200 218v24" stroke="#FFE9A8" stroke-width="4"/>`,
   };
-  return `<svg viewBox="0 0 400 260" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${sky}${scenes[t.scene] || scenes.hills}</svg>`;
+  return `<svg viewBox="0 0 400 260" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${sky}${scenes[t.scene] || scenes.hills}${sceneDeco(t.scene)}</svg>`;
 }
 const heroMedia = adv => adv.research?.photo?.img ? `<img src="${esc(adv.research.photo.img)}" alt="">` : sceneSVG(adv.type);
 const whenLabel = adv => {
@@ -95,6 +95,7 @@ function home() {
   const wx = next && wxDay(next);
   return `<div class="screen">
     <header class="greet"><span class="eyebrow">${fmtDate(todayStr(), { weekday: 'long', month: 'long', day: 'numeric' })}</span><h1>${hi}${name ? ', ' + esc(name) : ''}.</h1></header>
+    ${homeBanner(next ? (next.status === 'active' ? 'Adventure in progress! Let’s roll.' : `${whenLabel(next)}: ${esc(next.title)}!`) : 'Where are we going today?')}
     <a class="idea-cta" href="#/ideas"><span class="e">✨</span><span><b>Get 3 trip ideas</b><small>Set how far you'll drive and what you like. Planerr builds the plans.</small></span><span class="go">→</span></a>
     ${next ? `
       <a class="hero tall" href="#/a/${next.id}" style="text-decoration:none">
@@ -114,7 +115,7 @@ function home() {
     ${open.length > 1 ? `<section class="stack"><div class="section-title"><h2>Coming up</h2></div><div class="adv-list">${open.slice(1).map(advCard).join('')}</div></section>` : ''}
     <section class="stack">
       <div class="section-title"><h2>Past adventures</h2><span class="muted small">${past.length}</span></div>
-      ${past.length ? `<div class="adv-list">${past.map(advCard).join('')}</div>` : `<div class="empty">Finished adventures show up here with your rating.</div>`}
+      ${past.length ? `<div class="adv-list">${past.map(advCard).join('')}</div>` : `<div class="empty">${pipNote('<span>Finished adventures show up here with your rating.</span>', 'sleepy')}</div>`}
     </section>
     ${state.adventures.some(a => a.example) ? `<p class="note">Items marked Example are samples. Remove them in <a href="#/you">You</a>.</p>` : ''}
   </div>`;
@@ -310,7 +311,7 @@ function timelineCard(adv) {
         ${r.drive ? `<div class="t-drive">🚗 ${fmtDur(r.drive)} drive${r.km ? ' · ' + dist(r.km) : ''}</div>` : ''}
         <h3>${s.main ? '⭐ ' : ''}${esc(s.name)}</h3>
         <div class="row wrap small"><span class="muted">${CATS[s.cat]?.e} ${fmtDur(s.dur)} · until ${fmtTime(r.depart)}${s.cost ? ' · ' + money(s.cost) : ''}</span>${x ? `<span class="muted">${wmo(x.code)[0]} ${Math.round(x.temp)}°</span>` : ''}</div>
-        <div class="row wrap">${hp}${s.place ? `<a class="pill line" href="${mapsDir(s.place)}" target="_blank" rel="noopener">Directions ↗</a>` : ''}</div>
+        <div class="row wrap">${hp}${s.place ? `<a class="pill line" href="${mapsDir(s.place)}" target="_blank" rel="noopener">Directions ↗</a>` : ''}${s.cat === 'food' && s.place ? reviewsLink(s.name, s.place) : ''}</div>
         ${s.tip ? `<p class="small muted">💡 ${esc(s.tip)}</p>` : ''}
       </div></div>`;
   }).join('');
@@ -322,7 +323,7 @@ function timelineCard(adv) {
       ${adv.origin ? `<div class="t-row"><div class="t-time">${fmtTime(sch.home)}</div><div class="t-rail"><div class="t-dot home"></div></div><div class="t-body">${sch.back ? `<div class="t-drive">🚗 ${fmtDur(sch.back.min)} drive · ${dist(sch.back.km)}</div>` : ''}<h3>Back home</h3></div></div>` : ''}
     </div>
     ${sch.routed ? '<p class="note">Drive times come from OpenStreetMap routing and don’t include traffic.</p>' : stepBadge(adv.id, 'route', 'Working out drive times…')}`
-    : `<div class="empty">No stops yet.<a class="btn sm primary" href="#/edit/${adv.id}">Add stops</a></div>`}
+    : `<div class="empty">${pipNote('<span>No stops yet. Pip is ready when you are.</span>', 'wink', `<a class="btn sm primary" href="#/edit/${adv.id}">Add stops</a>`)}</div>`}
   </section>`;
 }
 
@@ -344,7 +345,7 @@ function foodCard(adv) {
       <div class="ic">${e}</div>
       <div class="main"><b>${esc(f.name)}</b>
         <span class="small muted">${esc(f.cuisine.slice(0, 2).map(c => cuisineInfo(c)[0]).join(' · ') || label)} · ${dist(f.km)}${h ? ` · ${h.status === 'open' ? 'Open ' + esc(h.text) : h.status === 'closed' ? 'Closed that day' : 'Hours vary'}` : ''}</span>
-        <span class="row wrap" style="gap:4px">${f.score > 0 ? '<span class="pill good">Matches your taste</span>' : ''}${diets.map(x => `<span class="pill line">${x}</span>`).join('')}</span>
+        <span class="row wrap" style="gap:4px">${f.score > 0 ? '<span class="pill good">Matches your taste</span>' : ''}${diets.map(x => `<span class="pill line">${x}</span>`).join('')}${reviewsLink(f.name, f)}</span>
       </div>
       <div class="acts">
         <button class="icon-btn" data-act="food-vote" data-fid="${f.id}" data-v="1" aria-label="I like this kind of food" style="${votes[f.id] === 1 ? 'background:var(--good-soft)' : ''}">👍</button>
@@ -357,7 +358,7 @@ function foodCard(adv) {
     <div class="chips"><button class="chip ${ui.foodFilter === 'match' ? 'on' : ''}" data-act="food-filter" data-f="match">Best for you</button>${state.profile.diet.length ? `<button class="chip ${ui.foodFilter === 'diet' ? 'on' : ''}" data-act="food-filter" data-f="diet">${state.profile.diet.map(d => DIETS[d]).join(' / ')} only</button>` : ''}</div>
     ${Object.keys(groups).length ? Object.entries(groups).map(([k, fs]) => `<div class="stack" style="gap:0"><span class="label">${esc(k)}</span><div class="list">${fs.map(item).join('')}</div></div>`).join('')
       : '<p class="muted">Nothing matched. Try “Best for you”.</p>'}
-    <p class="note">👍 and 👎 teach Planerr your taste. ＋ adds the place to your plan. Listings come from OpenStreetMap, so double-check hours for small places.</p>
+    <p class="note">👍 and 👎 teach Planerr your taste. ＋ adds the place to your plan. Tap Google reviews to read what people say in Google Maps. Listings come from OpenStreetMap, so double-check hours for small places.</p>
   </section>`;
 }
 
@@ -487,6 +488,7 @@ function briefing(id) {
   return `<div class="brief">
     <div class="row"><a class="icon-btn" href="#/a/${adv.id}" aria-label="Back" style="background:rgba(255,255,255,.6)">${I.back}</a></div>
     <div class="hello">
+      <div class="brief-pip">${pip('happy', 'bob')}</div>
       <h1>${hi}${state.profile.name ? ', ' + esc(state.profile.name) : ''} <span class="wave">👋</span></h1>
       <p>Here's your briefing for <b>${esc(adv.title)}</b>: ${adv.stops.length} stop${adv.stops.length === 1 ? '' : 's'}${sch.routed ? `, ${fmtDur(sch.driveMin)} of driving` : ''}, back around <b>${fmtTime(sch.home)}</b>.</p>
     </div>
@@ -530,7 +532,7 @@ function live(id) {
         ${cur.tip ? `<span class="small">💡 ${esc(cur.tip)}</span>` : ''}
         <div class="row">${cur.place ? `<a class="btn primary" style="flex:1" href="${mapsDir(cur.place)}" target="_blank" rel="noopener">Navigate ↗</a>` : ''}<button class="btn" style="flex:1" data-act="stop-done" data-sid="${cur.id}">Done here ✓</button></div>
       </div>` : `<div class="now-card"><span class="label">All stops done</span><h2>Nice work! 🎉</h2><span>Head home safe, then rate the day.</span>${adv.origin ? `<a class="btn primary" href="${mapsDir(adv.origin)}" target="_blank" rel="noopener">Navigate home ↗</a>` : ''}</div>`}
-    ${food.length ? `<section class="card"><h2>Hungry?</h2><div class="list">${food.map(f => `<div class="li"><div class="ic">${f.cuisine.length ? cuisineInfo(f.cuisine[0])[1] : (AMENITY_FOOD[f.amenity] || ['', '🍽️'])[1]}</div><div class="main"><b>${esc(f.name)}</b><span class="small muted">${dist(f.d)} from ${esc(cur.name)}</span></div><a class="icon-btn" href="${mapsDir(f)}" target="_blank" rel="noopener" aria-label="Directions">↗</a></div>`).join('')}</div></section>` : ''}
+    ${food.length ? `<section class="card"><h2>Hungry?</h2><div class="list">${food.map(f => `<div class="li"><div class="ic">${f.cuisine.length ? cuisineInfo(f.cuisine[0])[1] : (AMENITY_FOOD[f.amenity] || ['', '🍽️'])[1]}</div><div class="main"><b>${esc(f.name)}</b><span class="small muted">${dist(f.d)} from ${esc(cur.name)}</span>${reviewsLink(f.name, f)}</div><a class="icon-btn" href="${mapsDir(f)}" target="_blank" rel="noopener" aria-label="Directions">↗</a></div>`).join('')}</div></section>` : ''}
     <section class="card"><h2>Stops</h2>
       ${adv.stops.map((s, j) => `<label class="check ${s.done ? 'done' : ''}"><input type="checkbox" data-act="stop-toggle" data-sid="${s.id}" ${s.done ? 'checked' : ''}><span>${esc(s.name)}<small>${fmtTime(sch.rows[j].arrive)} · ${fmtDur(s.dur)}</small></span></label>`).join('')}
     </section>
@@ -606,7 +608,7 @@ function explore(id) {
       <div class="stack" style="gap:4px;min-width:0"><h3>${esc(a.title)}</h3>
         <div class="meta"><span>📍 ${esc(a.region || '')}</span></div>
         <div class="meta">${a.rating ? stars(a.rating) : ''}<span>${esc(a.author || '')}</span>${a.example ? '<span class="pill example-flag">Example</span>' : ''}${a.family_ages?.length ? '<span class="pill line">Family</span>' : ''}</div>
-      </div></a>`).join('') || '<div class="empty">Nothing matches yet.</div>'}</div>
+      </div></a>`).join('') || `<div class="empty">${pipNote('<span>Nothing matches yet.</span>', 'sleepy')}</div>`}</div>
   </div>`;
 }
 

@@ -1,7 +1,7 @@
 // Offline support: the app's own files are cached so Planerr opens without signal.
 // Live data (weather, maps, photos) always goes to the network.
-const CACHE = 'planerr-v3';
-const SHELL = ['./', 'index.html', 'styles.css', 'config.js', 'js/core.js', 'js/services.js', 'js/ui.js', 'js/ideas.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png'];
+const CACHE = 'planerr-v4';
+const SHELL = ['./', 'index.html', 'styles.css', 'config.js', 'js/core.js', 'js/services.js', 'js/art.js', 'js/ui.js', 'js/ideas.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
