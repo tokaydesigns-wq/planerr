@@ -27,12 +27,13 @@ async function overpass(query, perServerMs = 20000) {
 }
 const elPoint = e => ({ lat: e.lat ?? e.center?.lat, lon: e.lon ?? e.center?.lon });
 
-// Nominatim allows one request a second, so calls wait their turn in a queue.
-let nominatimTurn = Promise.resolve();
+// Nominatim allows one request a second. Each call takes the next start slot, one second after
+// the previous call started (not after it finished), so the queue never goes faster than that.
+let nominatimSlot = Promise.resolve();
 function nominatim(params, path = 'search') {
-  const run = nominatimTurn.then(() => getJSON(`https://nominatim.openstreetmap.org/${path}?format=jsonv2&` + new URLSearchParams(params)));
-  nominatimTurn = run.catch(() => {}).then(() => new Promise(r => setTimeout(r, 1100)));
-  return run;
+  const start = nominatimSlot;
+  nominatimSlot = start.then(() => new Promise(r => setTimeout(r, 1000)));
+  return start.then(() => getJSON(`https://nominatim.openstreetmap.org/${path}?format=jsonv2&` + new URLSearchParams(params)));
 }
 
 const foodItem = (id, name, amenity, pt, t) => ({
@@ -45,12 +46,12 @@ const foodItem = (id, name, amenity, pt, t) => ({
 });
 
 // Restaurants and cafés within about 2.5 km of each point, from Nominatim's category search.
-async function nominatimFood(points) {
+async function nominatimFood(points, kinds = ['restaurant', 'cafe']) {
   const seen = new Set(), out = [];
   for (const p of points.slice(0, 5)) {
     const dLat = .0225, dLon = .0225 / Math.cos(p.lat * Math.PI / 180);
     const box = [p.lon - dLon, p.lat + dLat, p.lon + dLon, p.lat - dLat].map(n => n.toFixed(5)).join(',');
-    for (const q of ['restaurant', 'cafe']) {
+    for (const q of kinds) {
       let rows = [];
       try { rows = await nominatim({ q, viewbox: box, bounded: 1, limit: 30, extratags: 1 }); } catch (e) { continue; }
       for (const r of rows) {
@@ -114,11 +115,11 @@ const API = {
   },
 
   // Nominatim first: it answers in about a second. The Overpass servers are often too busy,
-  // so they're only a backup when Nominatim finds nothing.
-  async food(points, perServerMs = 8000) {
+  // so they're only a backup when Nominatim finds nothing (skipped when perServerMs is 0).
+  async food(points, perServerMs = 8000, kinds) {
     let list = [];
-    try { list = await nominatimFood(points); } catch (e) {}
-    if (list.length) return list;
+    try { list = await nominatimFood(points, kinds); } catch (e) {}
+    if (list.length || !perServerMs) return list;
     const parts = points.map(p => `nwr(around:2500,${p.lat.toFixed(5)},${p.lon.toFixed(5)})["amenity"~"^(restaurant|cafe|fast_food|ice_cream|pub)$"]["name"];`).join('');
     const els = await overpass(`[out:json][timeout:25];(${parts});out tags center 120;`, perServerMs);
     return els.map(e => foodItem(e.type[0].toUpperCase() + e.id, e.tags.name, e.tags.amenity, elPoint(e), e.tags)).filter(f => f.lat != null);

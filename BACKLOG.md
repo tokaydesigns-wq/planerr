@@ -13,8 +13,7 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## Up next
 
-- [ ] `[polish]` Trip ideas take 30+ seconds. Find the slowest step (Nominatim's one-request-a-second queue is the likely cause) and speed it up without dropping the closure, food or trail checks.
-- [ ] `[feature]` Trails, second slice: count the whole trail, not just the part within about 4 miles of the stop (needs a wider Nominatim lookup, so do it after the speed-up PR lands). Also mark out-and-back trails; loops are now marked.
+- [ ] `[feature]` Trails, second slice: count the whole trail, not just the part within about 4 miles of the stop (needs a wider Nominatim lookup). Also mark out-and-back trails; loops are now marked.
 - [ ] `[feature]` Pip chat: understand more phrasings (for example "something to do with my dog", "not too hot", "somewhere new", "rainy day backup") and suggest one follow-up question when the description is thin.
 - [ ] `[polish]` Restaurants: when a plan ends up with "Lunch near…" because no restaurant was found within 6 km, widen the search before giving up.
 - [ ] `[feature]` Photos: a "Trip recap" view that shows each stop with its photos, rating and notes as one scrolling story.
@@ -39,6 +38,7 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## Done
 
+- [x] Trip ideas about twice as fast (25 s → about 11 s)
 - [x] Google reviews button on restaurants and trails
 - [x] Cartoon art (Pip), home banner, polished look
 - [x] Restaurants from Nominatim (Overpass kept as backup)

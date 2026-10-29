@@ -260,15 +260,26 @@ async function generateIdeas(shuffle) {
     if (!picks.length) throw { friendly: `Nothing within ${fmtDur(inp.maxDrive)} of driving fits between ${fmtTime(toMin(inp.start))} and ${fmtTime(toMin(inp.end))}. Try a longer drive or a longer day.` };
     picks.forEach(c => run.seen.add(c.id));
 
+    // Restaurants and photos for each pick start now, alongside the road checks, so the
+    // one-request-a-second map queue is never idle. A pick swapped out below just goes unused.
+    const likes = state.profile.likes || [];
+    const kinds = likes.some(c => /coffee|bakery|ice_cream/.test(c)) ? ['restaurant', 'cafe'] : ['restaurant'];
+    const prefetch = c => {
+      c.foodP = c.foodP || API.food([c], 0, kinds).catch(() => []);
+      c.extrasP = c.extrasP || pickExtras(c);
+    };
+    picks.forEach(prefetch);
+
     // Check the road in to each pick; swap out any that are closed that day (two rounds at most).
     setStep('access');
+    const roadDay = c => !['city', 'museum', 'food', 'themepark'].includes(c.type);
     for (let round = 0; round < 2; round++) {
-      await Promise.all(picks.filter(c => !c.access).map(async c => { c.access = await API.access(inp.origin, c, inp.date).catch(() => null); }));
+      await Promise.all(picks.filter(c => !c.access).map(async c => { c.access = await API.access(inp.origin, c, inp.date, roadDay(c)).catch(() => null); }));
       const blocked = picks.filter(c => accessBlocked(c.access, inp.date));
       if (!blocked.length) break;
       blocked.forEach(c => { c.score = -Infinity; });
       picks = pickThree(pool.filter(c => c.score > -Infinity));
-      picks.forEach(c => run.seen.add(c.id));
+      picks.forEach(c => { run.seen.add(c.id); prefetch(c); });
     }
     picks = picks.filter(c => !accessBlocked(c.access, inp.date));
     if (!picks.length) throw { friendly: 'Every place in range looks closed or snowed in that day. Try a different date, a shorter drive, or an indoor kind of day.' };
@@ -276,17 +287,10 @@ async function generateIdeas(shuffle) {
     setStep('food');
     let food = [];
     // Don't hold the plans hostage to a busy map server: give food 20 seconds, then build without it.
-    try { food = await Promise.race([API.food(picks, 8000), new Promise((_, no) => setTimeout(() => no(new Error('slow')), 20000))]); } catch (e) {}
+    try { food = (await Promise.race([Promise.all(picks.map(c => c.foodP)), new Promise((_, no) => setTimeout(() => no(new Error('slow')), 20000))])).flat(); } catch (e) {}
 
     setStep('photos');
-    const extras = await Promise.all(picks.map(async c => {
-      const [page, nearby] = await Promise.all([
-        c.wiki ? API.wikiPage(c.wiki).catch(() => null) : null,
-        API.wikiNearby(c).catch(() => []),
-      ]);
-      const photo = page || (c.image ? { img: c.image, title: c.name, text: '', url: `https://www.wikidata.org/wiki/${c.id.slice(3)}` } : null);
-      return { photo, nearby };
-    }));
+    const extras = await Promise.all(picks.map(c => c.extrasP));
     run.plans = picks.map((c, i) => makePlan(inp, c, food, extras[i]));
     run.plans.forEach((p, i) => { p.access = picks[i].access; p.adv.research.access = picks[i].access; });
     run.status = 'done';
@@ -298,6 +302,16 @@ async function generateIdeas(shuffle) {
     run.msg = e.friendly || 'Couldn’t reach the map service. Check your connection and try again.';
   }
   if (ui.ideas === run && parseRoute().view === 'ideas') { renderIdeasResults(); $('#idea-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+}
+
+// Main photo and nearby sights for a pick, from Wikipedia.
+async function pickExtras(c) {
+  const [page, nearby] = await Promise.all([
+    c.wiki ? API.wikiPage(c.wiki).catch(() => null) : null,
+    API.wikiNearby(c).catch(() => []),
+  ]);
+  const photo = page || (c.image ? { img: c.image, title: c.name, text: '', url: `https://www.wikidata.org/wiki/${c.id.slice(3)}` } : null);
+  return { photo, nearby };
 }
 
 // Plans from the last run survive a reload, so a plan's detail page can be reopened.
@@ -321,7 +335,7 @@ function ideaCard(p, i) {
         ${a.stops.map((s, j) => `<div class="li" style="grid-template-columns:64px 1fr"><b class="small">${fmtTime(p.times[j])}</b><div class="main"><b>${s.main ? '⭐ ' : CATS[s.cat].e + ' '}${esc(s.name)}</b><span class="small muted">${fmtDur(s.dur)}${s.cuisine?.length ? ' · ' + esc(s.cuisine.slice(0, 2).map(x => cuisineInfo(x)[0]).join(', ')) : ''}${s.tip ? ' · ' + esc(s.tip.slice(0, 70)) + (s.tip.length > 70 ? '…' : '') : ''}</span></div></div>`).join('')}
         <div class="li" style="grid-template-columns:64px 1fr"><b class="small">${fmtTime(p.home)}</b><div class="main"><b>🏠 Back home</b></div></div>
       </div>
-      ${p.noFood ? '<p class="small muted">The restaurant map is busy right now, so lunch is a placeholder. Save the plan and it fills in places that match your taste.</p>' : ''}
+      ${p.adv.stops.some(s => s.cat === 'food' && !s.place) ? '<p class="small muted">No restaurants are mapped right next to this spot, so lunch is a placeholder. Save the plan and it searches along your whole route for places that match your taste.</p>' : ''}
       <div class="row wrap small"><span>Est. <b>${money(p.cost)}</b>${p.overBudget ? ` <span class="pill warn">over your ${money(a.budget)}</span>` : ` <span class="pill good">within budget</span>`}</span></div>
       <div class="row"><a class="btn" style="flex:1" href="#/idea/${i}">See photos & details</a>
       ${p.saved ? `<a class="btn dark" style="flex:1" href="#/a/${a.id}">Saved · Open</a>` : `<button class="btn primary" style="flex:1" data-act="idea-save" data-i="${i}">Save this plan</button>`}</div>
