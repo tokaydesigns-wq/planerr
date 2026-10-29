@@ -41,6 +41,7 @@ const foodItem = (id, name, amenity, pt, t) => ({
   hours: t.opening_hours || null, website: t.website || t['contact:website'] || null,
   diet: Object.fromEntries(Object.keys(DIETS).map(d => [d, t['diet:' + d] || null])),
   takeaway: t.takeaway || null, outdoor: t.outdoor_seating || null,
+  ctags: Object.fromEntries(Object.entries(t).filter(([k]) => /^(seasonal|note|description|fixme|(disused|abandoned|was):.*)$/.test(k))),
 });
 
 // Restaurants and cafés within about 2.5 km of each point, from Nominatim's category search.
@@ -245,6 +246,13 @@ async function research(adv, onStep = () => {}) {
       R.nearby = await API.wikiNearby(anchor);
     }),
   ]);
+
+  // Roads in, elevation and snow for the main destination (see closures.js).
+  await step('access', async () => {
+    if (!main?.place) { R.access = null; return; }
+    const before = located(adv).filter(s => s !== main && adv.stops.indexOf(s) < adv.stops.indexOf(main)).at(-1)?.place || adv.origin;
+    R.access = await API.access(before, main.place, adv.date);
+  });
 
   // Stops added from ideas, Wikipedia or the community have coordinates but no OpenStreetMap id yet.
   // Match each to the nearest same-named map entry so its hours and website can be checked.

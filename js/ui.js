@@ -317,7 +317,7 @@ function timelineCard(adv) {
         <h3>${s.main ? '⭐ ' : ''}${esc(s.name)}</h3>
         ${s.trail ? `<span class="small">🥾 ${esc(s.trail.name)} · ${dist(s.trail.km)} · ${s.trail.diff}</span>` : ''}
         <div class="row wrap small"><span class="muted">${CATS[s.cat]?.e} ${fmtDur(s.dur)} · until ${fmtTime(r.depart)}${s.cost ? ' · ' + money(s.cost) : ''}</span>${x ? `<span class="muted">${wmo(x.code)[0]} ${Math.round(x.temp)}°</span>` : ''}</div>
-        <div class="row wrap">${hp}${s.place ? `<a class="pill line" href="${mapsDir(s.place)}" target="_blank" rel="noopener">Directions ↗</a>` : ''}${s.cat === 'food' && s.place ? reviewsLink(s.name, s.place) : ''}</div>
+        <div class="row wrap">${hp}${s.place ? `<a class="pill line" href="${mapsDir(s.place)}" target="_blank" rel="noopener">Directions ↗</a>` : ''}${s.cat === 'food' && s.place ? reviewsLink(s.name, s.place) : ''}${s.place && adv.status !== 'done' ? closedBtn(closedKey(s.place), s.name) : ''}</div>
         ${s.tip ? `<p class="small muted">💡 ${esc(s.tip)}</p>` : ''}
       </div></div>`;
   }).join('');
@@ -338,7 +338,8 @@ function foodCard(adv) {
   if (!R.food) return `<section class="card" id="food"><h2>Food along the way</h2><p class="muted">${ui.busy[adv.id] ? stepBadge(adv.id, 'food', 'Finding places to eat…') : R.errors?.food ? 'Couldn’t load restaurants right now. Try Refresh research below.' : 'Add a destination to find food nearby.'}</p></section>`;
   const votes = state.profile.votes || {};
   const planned = new Set(adv.stops.map(s => s.place?.osm));
-  let list = R.food.filter(f => !planned.has(f.id) && votes[f.id] !== -1).map(f => ({ ...f, score: tasteScore(f) }));
+  const shut = R.food.filter(f => reportedClosed(f) || closedInfo({ ...f.ctags, opening_hours: f.hours }, adv.date)?.status === 'closed').map(f => f.id);
+  let list = R.food.filter(f => !planned.has(f.id) && votes[f.id] !== -1 && !shut.includes(f.id)).map(f => ({ ...f, score: tasteScore(f), maybe: closedInfo(f.ctags, adv.date)?.status === 'maybe' }));
   if (ui.foodFilter === 'diet' && state.profile.diet.length) list = list.filter(f => state.profile.diet.some(d => f.diet[d] === 'yes' || f.diet[d] === 'only' || f.cuisine.includes(d)));
   list.sort((a, b) => b.score - a.score || a.km - b.km);
   const groups = {};
@@ -351,7 +352,7 @@ function foodCard(adv) {
       <div class="ic">${e}</div>
       <div class="main"><b>${esc(f.name)}</b>
         <span class="small muted">${esc(f.cuisine.slice(0, 2).map(c => cuisineInfo(c)[0]).join(' · ') || label)} · ${dist(f.km)}${h ? ` · ${h.status === 'open' ? 'Open ' + esc(h.text) : h.status === 'closed' ? 'Closed that day' : 'Hours vary'}` : ''}</span>
-        <span class="row wrap" style="gap:4px">${f.score > 0 ? '<span class="pill good">Matches your taste</span>' : ''}${diets.map(x => `<span class="pill line">${x}</span>`).join('')}${reviewsLink(f.name, f)}</span>
+        <span class="row wrap" style="gap:4px">${f.score > 0 ? '<span class="pill good">Matches your taste</span>' : ''}${f.maybe ? '<span class="pill warn">Seasonal: check it’s open</span>' : ''}${diets.map(x => `<span class="pill line">${x}</span>`).join('')}${reviewsLink(f.name, f)}${closedBtn(f.id, f.name)}</span>
       </div>
       <div class="acts">
         <button class="icon-btn" data-act="food-vote" data-fid="${f.id}" data-v="1" aria-label="I like this kind of food" style="${votes[f.id] === 1 ? 'background:var(--good-soft)' : ''}">👍</button>
@@ -360,7 +361,8 @@ function foodCard(adv) {
       </div></div>`;
   };
   return `<section class="card" id="food">
-    <div class="card-head"><h2>Food along the way</h2><span class="muted small">${R.food.length} found</span></div>
+    <div class="card-head"><h2>Food along the way</h2><span class="muted small">${R.food.length - shut.length} found</span></div>
+    ${shut.length ? `<p class="small muted">Hiding ${shut.length} place${shut.length === 1 ? '' : 's'} that ${shut.length === 1 ? 'is' : 'are'} closed that day or that you reported closed.</p>` : ''}
     <div class="chips"><button class="chip ${ui.foodFilter === 'match' ? 'on' : ''}" data-act="food-filter" data-f="match">Best for you</button>${state.profile.diet.length ? `<button class="chip ${ui.foodFilter === 'diet' ? 'on' : ''}" data-act="food-filter" data-f="diet">${state.profile.diet.map(d => DIETS[d]).join(' / ')} only</button>` : ''}</div>
     ${Object.keys(groups).length ? Object.entries(groups).map(([k, fs]) => `<div class="stack" style="gap:0"><span class="label">${esc(k)}</span><div class="list">${fs.map(item).join('')}</div></div>`).join('')
       : '<p class="muted">Nothing matched. Try “Best for you”.</p>'}
@@ -422,6 +424,7 @@ function gearCard(adv) {
 function researchCard(adv) {
   const R = adv.research || {}, c = R.checked || {};
   const rows = [['route', 'Drive times', 'OSRM / OpenStreetMap'], ['weather', 'Forecast', 'Open-Meteo'], ['hours', 'Opening hours & websites', 'OpenStreetMap'], ['food', 'Food along the way', 'OpenStreetMap'], ['photos', 'Photos', 'Wikipedia']];
+  rows.splice(1, 0, ['access', 'Road closures, elevation & snow', 'OpenStreetMap / Open-Meteo']);
   if (isHikeAdv(adv)) rows.push(['trails', 'Recommended trails', 'OpenStreetMap / Open-Meteo']);
   if (adv.familyMode) rows.push(['family', 'Kid-friendly spots', 'OpenStreetMap']);
   return `<section class="card"><div class="card-head"><h2>Research</h2><button class="btn sm" data-act="research" ${ui.busy[adv.id] ? 'disabled' : ''}>${ui.busy[adv.id] ? 'Researching…' : 'Refresh'}</button></div>

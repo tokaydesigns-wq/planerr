@@ -478,3 +478,5 @@ button.pill { border: 0; cursor: pointer; font: inherit; font-size: .78rem; font
 .v-bar .field > span { color: #cfd8d4; }
 a.pill { text-decoration: none; }
 .trail .pill.line { background: var(--surface); }
+
+.closed-btn { color: var(--muted); }

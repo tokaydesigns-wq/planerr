@@ -54,6 +54,7 @@ const STEP_LABELS = {
   places: p => `Finding places within ${fmtDur(p.maxDrive)} of ${p.origin.label}`,
   drive: () => 'Checking real drive times',
   weather: () => 'Checking the weather that day',
+  access: () => 'Checking road closures and snow',
   food: () => 'Finding food you’ll like',
   photos: () => 'Getting photos and sights nearby',
 };
@@ -98,10 +99,22 @@ async function findCandidates(inp) {
 }
 
 // Shortlist ~12 places spread across the chosen kinds of day, favoring well-known ones a comfortable distance out.
+// Elevation for every candidate (100 per Open-Meteo call), so snowed-in peaks drop out before shortlisting.
+async function addElevations(cands) {
+  const need = cands.filter(c => c.elev === undefined).slice(0, 400);
+  await Promise.all(Array.from({ length: Math.ceil(need.length / 100) }, (_, k) => need.slice(k * 100, k * 100 + 100)).map(async part => {
+    try {
+      const el = await getJSON(`https://api.open-meteo.com/v1/elevation?latitude=${part.map(c => c.lat.toFixed(4)).join(',')}&longitude=${part.map(c => c.lon.toFixed(4)).join(',')}`);
+      part.forEach((c, i) => { c.elev = el.elevation?.[i] ?? null; });
+    } catch (e) { part.forEach(c => { c.elev = null; }); }
+  }));
+}
+
 function shortlist(cands, inp, exclude) {
   const R = reachKm(inp), minKm = Math.max(6, R * 0.1);
   const byType = {};
-  cands.filter(c => c.crow >= minKm && c.crow <= R && !exclude.has(c.id)).forEach(c => { (byType[c.type] = byType[c.type] || []).push(c); });
+  cands.filter(c => c.crow >= minKm && c.crow <= R && !exclude.has(c.id) && !reportedClosed({ name: c.name, lat: c.lat, lon: c.lon })
+    && (c.type === 'snow' || seasonRisk(c.elev, inp.date)?.lv !== 'high')).forEach(c => { (byType[c.type] = byType[c.type] || []).push(c); });
   const types = Object.keys(byType);
   const per = Math.max(3, Math.ceil(12 / Math.max(1, types.length)));
   return types.flatMap(t => byType[t]
@@ -111,6 +124,8 @@ function shortlist(cands, inp, exclude) {
 
 function scoreCandidate(c, inp) {
   if (!c.drive || c.drive.min > inp.maxDrive * 1.1) return -Infinity;
+  // High mountains are usually gated or snowed in outside summer (ski areas excepted).
+  if (c.type !== 'snow' && seasonRisk(c.elev, inp.date)?.lv === 'high') return -Infinity;
   const window = toMin(inp.end) - toMin(inp.start);
   if (c.drive.min * 2 + 60 > window) return -Infinity;
   let s = 1 - Math.abs(c.drive.min / inp.maxDrive - 0.65) * 1.1 + Math.log10(c.links + 1) * 0.3 + Math.random() * 0.2;
@@ -149,7 +164,8 @@ function makePlan(inp, c, food, ex) {
     priceNote: IDEA_COST[c.type] ? `${IDEA_PRICE[c.type]}: about ${money(IDEA_COST[c.type])} per person × ${who}` : IDEA_PRICE[c.type],
   });
 
-  const near = food.filter(f => haversine(f, c) < 6).map(f => ({ ...f, s: tasteScore(f) + (f.cuisine.length ? 0.3 : 0) - haversine(f, c) / 8 })).sort((a, b) => b.s - a.s);
+  const near = food.filter(f => haversine(f, c) < 6 && !reportedClosed(f) && closedInfo({ ...f.ctags, opening_hours: f.hours }, inp.date)?.status !== 'closed')
+    .map(f => ({ ...f, s: tasteScore(f) + (f.cuisine.length ? 0.3 : 0) + (f.hours ? 0.4 : 0) - (closedInfo(f.ctags, inp.date) ? 1 : 0) - haversine(f, c) / 8 })).sort((a, b) => b.s - a.s);
   const foods = [];
   for (const f of near) {
     if (foods.length === 4) break;
@@ -225,6 +241,7 @@ async function generateIdeas(shuffle) {
   setStep('places');
   try {
     if (!run.cands) run.cands = await findCandidates(inp);
+    await addElevations(run.cands);
     let pool = shortlist(run.cands, inp, run.seen);
     if (pool.length < 3 && run.seen.size) { run.seen = new Set(); pool = shortlist(run.cands, inp, run.seen); }
     if (!pool.length) throw { friendly: `Couldn’t find matching places within ${fmtDur(inp.maxDrive)}. Try a longer drive or add more kinds of day.` };
@@ -239,9 +256,22 @@ async function generateIdeas(shuffle) {
       try { const wx = await API.weatherMany(pool, inp.date, state.profile.units); pool.forEach((c, i) => { c.wx = wx[i]; }); } catch (e) {}
     }
     pool.forEach(c => { c.score = scoreCandidate(c, inp); });
-    const picks = pickThree(pool);
+    let picks = pickThree(pool);
     if (!picks.length) throw { friendly: `Nothing within ${fmtDur(inp.maxDrive)} of driving fits between ${fmtTime(toMin(inp.start))} and ${fmtTime(toMin(inp.end))}. Try a longer drive or a longer day.` };
     picks.forEach(c => run.seen.add(c.id));
+
+    // Check the road in to each pick; swap out any that are closed that day (two rounds at most).
+    setStep('access');
+    for (let round = 0; round < 2; round++) {
+      await Promise.all(picks.filter(c => !c.access).map(async c => { c.access = await API.access(inp.origin, c, inp.date).catch(() => null); }));
+      const blocked = picks.filter(c => accessBlocked(c.access, inp.date));
+      if (!blocked.length) break;
+      blocked.forEach(c => { c.score = -Infinity; });
+      picks = pickThree(pool.filter(c => c.score > -Infinity));
+      picks.forEach(c => run.seen.add(c.id));
+    }
+    picks = picks.filter(c => !accessBlocked(c.access, inp.date));
+    if (!picks.length) throw { friendly: 'Every place in range looks closed or snowed in that day. Try a different date, a shorter drive, or an indoor kind of day.' };
 
     setStep('food');
     let food = [];
@@ -258,6 +288,7 @@ async function generateIdeas(shuffle) {
       return { photo, nearby };
     }));
     run.plans = picks.map((c, i) => makePlan(inp, c, food, extras[i]));
+    run.plans.forEach((p, i) => { p.access = picks[i].access; p.adv.research.access = picks[i].access; });
     run.status = 'done';
     state.lastIdeas = { plans: run.plans, key, date: inp.date };
     save();
@@ -333,6 +364,14 @@ async function loadIdeaExtras(p) {
   if (r.view === 'idea' && ui.ideas?.plans?.[+r.id] === p) { const y = window.scrollY; render(); window.scrollTo(0, y); }
 }
 
+// Closure and snow warnings for a generated plan, plus places you've reported closed.
+function ideaAlerts(p) {
+  const a = p.adv, main = a.stops.find(s => s.main);
+  const list = [...accessAlerts(p.access, main.name, a.date, main.cat), ...a.stops.filter(s => s.place && reportedClosed(s.place)).map(s => ({ lv: 'bad', ic: '🚫', t: `You reported <b>${esc(s.name)}</b> closed. Go back and tap Show me 3 different plans for new picks.` }))];
+  const checked = p.access && !p.access.roads.length ? '<p class="note">✓ Planerr checked the roads in and the season for closures. Map data can miss temporary closures, so check the official site before you go.</p>' : '';
+  return list.length ? `<div class="alerts">${list.map(x => `<div class="alert ${x.lv}"><span class="ic">${x.ic}</span><span>${x.t}</span></div>`).join('')}</div>${checked}` : checked;
+}
+
 function foodDesc(s, date) {
   const m = s.meta || {}, kind = (AMENITY_FOOD[m.amenity] || ['Restaurant'])[0].toLowerCase();
   const cuis = (s.cuisine || []).map(c => cuisineInfo(c)[0]);
@@ -363,7 +402,7 @@ function stopDetail(p, s, j) {
     ${s.photo && !s.main ? `<img class="sd-img" src="${esc(s.photo)}" alt="${esc(s.name)}" loading="lazy">` : ''}
     ${desc ? `<p>${esc(desc)}</p>` : ''}
     ${s.priceNote ? `<p class="small muted">💵 ${esc(s.priceNote)}</p>` : ''}
-    <div class="row wrap">${s.place ? `<a class="pill line" href="${mapsDir(s.place)}" target="_blank" rel="noopener">Directions ↗</a>` : ''}${link ? `<a class="pill line" href="${esc(link[0])}" target="_blank" rel="noopener">${link[1]} ↗</a>` : ''}${s.cat === 'food' && s.place ? reviewsLink(s.name, s.place) : s.searchNear ? `<a class="pill line g-reviews" href="${mapsReviews('restaurants', s.searchNear)}" target="_blank" rel="noopener"><span class="g-star">★</span> Restaurants & reviews nearby ↗</a>` : ''}</div>
+    <div class="row wrap">${s.place ? `<a class="pill line" href="${mapsDir(s.place)}" target="_blank" rel="noopener">Directions ↗</a>` : ''}${link ? `<a class="pill line" href="${esc(link[0])}" target="_blank" rel="noopener">${link[1]} ↗</a>` : ''}${s.place ? closedBtn(closedKey(s.place), s.name) : ''}${s.cat === 'food' && s.place ? reviewsLink(s.name, s.place) : s.searchNear ? `<a class="pill line g-reviews" href="${mapsReviews('restaurants', s.searchNear)}" target="_blank" rel="noopener"><span class="g-star">★</span> Restaurants & reviews nearby ↗</a>` : ''}</div>
   </div>`;
 }
 
@@ -390,6 +429,7 @@ function ideaDetail(i) {
       <h1>${esc(a.title)}</h1>
       <div class="row wrap">${p.reasons.map(r => `<span class="pill line">${esc(r)}</span>`).join('')}</div>
     </div>
+    ${ideaAlerts(p)}
 
     <section class="card">
       <h2>About ${esc(main.name)}</h2>
@@ -448,7 +488,7 @@ function ideasResultsHTML() {
   const run = ui.ideas, inp = ideaPrefs();
   if (!run) return '';
   if (run.status === 'running') {
-    const order = ['places', 'drive', 'weather', 'food', 'photos'], at = order.indexOf(run.step);
+    const order = ['places', 'drive', 'weather', 'access', 'food', 'photos'], at = order.indexOf(run.step);
     return `<section class="card"><div class="drive-anim">${pip('happy', 'bob')}<div class="mini-road"></div></div><h2>Building your plans…</h2><div class="list">${order.map((s, i) => `<div class="li" style="grid-template-columns:28px 1fr">${i < at ? '<span class="pill good">✓</span>' : i === at ? '<span class="spin"></span>' : '<span class="muted">·</span>'}<span class="${i > at ? 'muted' : ''}">${STEP_LABELS[s](inp)}</span></div>`).join('')}</div></section>`;
   }
   if (run.status === 'error') return `<div class="alert warn"><span class="ic">⚠️</span><span>${esc(run.msg)}</span></div>`;

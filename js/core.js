@@ -365,6 +365,13 @@ function budget(adv) {
 // ---------- heads-up alerts ----------
 function alertsFor(adv) {
   const out = [], sch = schedule(adv), ss = sunsetMin(adv), w = wxDay(adv);
+  const main = mainStop(adv);
+  if (main && adv.research?.access) out.push(...accessAlerts(adv.research.access, main.name, adv.date, main.cat));
+  adv.stops.forEach(s => {
+    if (s.place && reportedClosed(s.place)) { out.push({ lv: 'bad', ic: '🚫', t: `You reported <b>${esc(s.name)}</b> closed. Swap it out with Edit stops.` }); return; }
+    const c = closedInfo(adv.research?.details?.[s.place?.osm], adv.date);
+    if (c && c.why !== 'Closed that day') out.push({ lv: c.status === 'closed' ? 'bad' : 'warn', ic: '⛔', t: `<b>${esc(s.name)}</b>: ${esc(c.why)}.` });
+  });
   adv.stops.forEach((s, i) => {
     const tags = adv.research?.details?.[s.place?.osm];
     if (!tags?.opening_hours) return;
