@@ -73,7 +73,8 @@ img { max-width: 100%; display: block; }
   max-width: 600px; margin: 0 auto;
   padding: env(safe-area-inset-top, 0px) max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px));
 }
-.screen { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; padding-top: 16px; animation: rise .35s ease-out both; }
+.screen { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; padding-top: 16px; }
+.screen.enter { animation: rise .35s ease-out both; }
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
 .screen > *, .card > *, .stack > * { min-width: 0; }
 
@@ -407,7 +408,7 @@ details summary { cursor: pointer; font-weight: 700; }
 .g-reviews { text-decoration: none; }
 .g-star { color: #F4B400; font-size: .95em; }
 @media (prefers-reduced-motion: reduce) {
-  .screen, .bubble, .pip.bob .pip-body, .cloud.drift, .sun .rays, .road-dash, .mini-road { animation: none; }
+  .screen.enter, .bubble, .pip.bob .pip-body, .cloud.drift, .sun .rays, .road-dash, .mini-road { animation: none; }
 }
 
 /* ---------- chat with Pip ---------- */
@@ -419,7 +420,8 @@ details summary { cursor: pointer; font-weight: 700; }
 .composer textarea { min-height: 48px; max-height: 140px; resize: none; border-radius: 16px; padding: 12px 14px; line-height: 1.35; }
 .composer .send { width: 48px; height: 48px; border-radius: 16px; border: 2.5px solid var(--outline); background: linear-gradient(145deg, #FF7A45, var(--coral)); color: #fff; display: grid; place-items: center; cursor: pointer; box-shadow: 0 3px 0 var(--outline); }
 .composer .send:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--outline); }
-.chat-screen { padding-bottom: 92px; animation: none; }
+.chat-screen { padding-bottom: 92px; }
+.chat-screen.enter { animation: none; }
 .chat-screen > .composer { position: fixed; left: 0; right: 0; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px)); z-index: 15; padding: 10px max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px)); background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid var(--line); max-width: 600px; margin: 0 auto; }
 .chat { display: grid; gap: 14px; }
 .msg { display: flex; gap: 8px; align-items: flex-end; min-width: 0; animation: rise .3s ease-out both; }
@@ -440,3 +442,39 @@ details summary { cursor: pointer; font-weight: 700; }
 .typing i:nth-child(3) { animation-delay: .3s; }
 @keyframes blink { 50% { opacity: .25; transform: translateY(-3px); } }
 @media (prefers-reduced-motion: reduce) { .msg, .typing i { animation: none; } }
+
+/* ---------- trails ---------- */
+.trail { display: grid; gap: 10px; padding: 14px; border-radius: 18px; background: var(--surface-2); border: 2px solid transparent; }
+.trail.picked { border-color: var(--good); background: color-mix(in srgb, var(--good-soft) 70%, var(--surface-2)); }
+.trail-head { display: grid; grid-template-columns: 40px 1fr auto; gap: 10px; align-items: center; }
+.trail-head .main { display: grid; gap: 1px; min-width: 0; }
+.trail-ic { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font-size: 1.2rem; background: linear-gradient(145deg, #9BD37A, #2FAE6E); border: 2px solid var(--outline); }
+.trail-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.trail-stats > div { background: var(--surface); border-radius: 12px; padding: 6px 10px; display: grid; }
+.trail-stats .k { font-size: .66rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.trail-stats b { font-family: var(--display); font-variant-numeric: tabular-nums; white-space: nowrap; }
+button.pill { border: 0; cursor: pointer; font: inherit; font-size: .78rem; font-weight: 700; }
+.pill.coral.trail-pick { border: 2px solid var(--outline); }
+
+/* ---------- trip photos ---------- */
+.album { display: grid; gap: 8px; }
+.album + .album { padding-top: 12px; border-top: 1px solid var(--line); }
+.album-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.album-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 6px; }
+.ph { position: relative; aspect-ratio: 1; border-radius: 12px; overflow: hidden; border: 0; padding: 0; background: var(--surface-2); cursor: pointer; }
+.ph img { width: 100%; height: 100%; object-fit: cover; }
+.ph.add { display: grid; place-content: center; justify-items: center; border: 2px dashed var(--line); color: var(--muted); }
+.ph.add span { font-size: 1.5rem; line-height: 1; color: var(--coral); font-weight: 800; }
+.ph.add small { font-size: .74rem; font-weight: 700; }
+.ph-cover { position: absolute; left: 4px; bottom: 4px; background: var(--sun); color: #2A1A00; font-size: .62rem; font-weight: 800; padding: 2px 6px; border-radius: 99px; }
+.live-photo { justify-self: start; background: rgba(255,255,255,.14); color: inherit; border-color: rgba(255,255,255,.35); cursor: pointer; }
+.viewer { position: fixed; inset: 0; z-index: 50; background: rgba(5, 12, 10, .94); display: grid; grid-template-rows: auto 1fr auto; padding: calc(env(safe-area-inset-top, 0px) + 10px) 12px calc(env(safe-area-inset-bottom, 0px) + 12px); animation: rise .2s ease-out; }
+.v-top { display: flex; align-items: center; gap: 8px; }
+.v-top .icon-btn { background: rgba(255,255,255,.9); color: #13241F; }
+.v-img { position: relative; display: grid; place-items: center; min-height: 0; }
+.v-img img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 10px; }
+.v-img .car-btn { top: calc(50% - 22px); }
+.v-bar { display: grid; gap: 10px; max-width: 560px; width: 100%; margin: 0 auto; padding-top: 10px; }
+.v-bar .field > span { color: #cfd8d4; }
+a.pill { text-decoration: none; }
+.trail .pill.line { background: var(--surface); }

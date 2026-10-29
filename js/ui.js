@@ -30,7 +30,7 @@ function sceneSVG(type) {
   };
   return `<svg viewBox="0 0 400 260" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${sky}${scenes[t.scene] || scenes.hills}${sceneDeco(t.scene)}</svg>`;
 }
-const heroMedia = adv => adv.research?.photo?.img ? `<img src="${esc(adv.research.photo.img)}" alt="">` : sceneSVG(adv.type);
+const heroMedia = adv => ui.covers?.[adv.id] ? `<img src="${ui.covers[adv.id]}" alt="">` : adv.research?.photo?.img ? `<img src="${esc(adv.research.photo.img)}" alt="">` : sceneSVG(adv.type);
 const whenLabel = adv => {
   if (adv.status === 'done') return fmtDate(adv.date, { month: 'short', day: 'numeric', year: 'numeric' });
   const d = daysUntil(adv.date);
@@ -43,6 +43,8 @@ function render() {
   const screens = { home, ideas: ideasScreen, idea: () => ideaDetail(id), chat: chatScreen, new: () => formScreen(null), edit: () => formScreen(id), a: () => detail(id), brief: () => briefing(id), live: () => live(id), rate: () => rateScreen(id), explore: () => explore(id), family, you };
   const fn = screens[view] || home;
   $('#app').innerHTML = fn();
+  // Fade in only when arriving on a screen, not on every in-place update.
+  if (ui.shown !== location.hash) { ui.shown = location.hash; $('#app').firstElementChild?.classList.add('enter'); }
   const tab = { new: 'new', edit: 'new', ideas: 'new', idea: 'new', chat: 'home', explore: 'explore', family: 'family', you: 'you' }[view] || 'home';
   $$('#tabbar a').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));
   $('#tabbar').hidden = view === 'brief';
@@ -56,6 +58,7 @@ function afterRender(view, id) {
   if (view === 'explore' && !ui.community && !ui.loadingCommunity) loadCommunity();
   if (view === 'idea') setupIdeaDetail(id);
   if (view === 'chat') setupChat();
+  if ((view === 'a' || view === 'rate' || view === 'live') && adv) loadTripPhotos(adv.id);
 }
 
 async function runResearch(adv) {
@@ -312,6 +315,7 @@ function timelineCard(adv) {
       <div class="t-body">
         ${r.drive ? `<div class="t-drive">🚗 ${fmtDur(r.drive)} drive${r.km ? ' · ' + dist(r.km) : ''}</div>` : ''}
         <h3>${s.main ? '⭐ ' : ''}${esc(s.name)}</h3>
+        ${s.trail ? `<span class="small">🥾 ${esc(s.trail.name)} · ${dist(s.trail.km)} · ${s.trail.diff}</span>` : ''}
         <div class="row wrap small"><span class="muted">${CATS[s.cat]?.e} ${fmtDur(s.dur)} · until ${fmtTime(r.depart)}${s.cost ? ' · ' + money(s.cost) : ''}</span>${x ? `<span class="muted">${wmo(x.code)[0]} ${Math.round(x.temp)}°</span>` : ''}</div>
         <div class="row wrap">${hp}${s.place ? `<a class="pill line" href="${mapsDir(s.place)}" target="_blank" rel="noopener">Directions ↗</a>` : ''}${s.cat === 'food' && s.place ? reviewsLink(s.name, s.place) : ''}</div>
         ${s.tip ? `<p class="small muted">💡 ${esc(s.tip)}</p>` : ''}
@@ -418,6 +422,7 @@ function gearCard(adv) {
 function researchCard(adv) {
   const R = adv.research || {}, c = R.checked || {};
   const rows = [['route', 'Drive times', 'OSRM / OpenStreetMap'], ['weather', 'Forecast', 'Open-Meteo'], ['hours', 'Opening hours & websites', 'OpenStreetMap'], ['food', 'Food along the way', 'OpenStreetMap'], ['photos', 'Photos', 'Wikipedia']];
+  if (isHikeAdv(adv)) rows.push(['trails', 'Recommended trails', 'OpenStreetMap / Open-Meteo']);
   if (adv.familyMode) rows.push(['family', 'Kid-friendly spots', 'OpenStreetMap']);
   return `<section class="card"><div class="card-head"><h2>Research</h2><button class="btn sm" data-act="research" ${ui.busy[adv.id] ? 'disabled' : ''}>${ui.busy[adv.id] ? 'Researching…' : 'Refresh'}</button></div>
     <div class="list">${rows.map(([k, label, src]) => {
@@ -462,9 +467,11 @@ function detail(id) {
     ${alerts.length ? `<div class="alerts">${alerts.map(a => `<div class="alert ${a.lv}"><span class="ic">${a.ic}</span><span>${a.t}</span></div>`).join('')}</div>` : (ui.busy[adv.id] ? '' : adv.research?.at ? `<div class="alert good"><span class="ic">✓</span><span>No problems found with this plan.</span></div>` : '')}
 
     <nav class="jump scroll-x" aria-label="Sections">
-      ${[['plan', 'Plan'], ['weather', 'Weather'], ['food', 'Food'], adv.stops.some(s => ticketInfo(adv, s)) && ['tickets', 'Tickets'], (adv.research?.nearby || []).length && ['explore', 'Nearby'], adv.familyMode && state.family.kids.length && ['family', 'Family'], ['gear', 'Gear']].filter(Boolean).map(([k, l]) => `<a class="chip" href="#${k}" data-act="jump" data-to="${k}">${l}</a>`).join('')}
+      ${[['plan', 'Plan'], isHikeAdv(adv) && ['trails', 'Trails'], (adv.status !== 'planned' || adv.photoCount) && ['photos', 'Photos'], ['weather', 'Weather'], ['food', 'Food'], adv.stops.some(s => ticketInfo(adv, s)) && ['tickets', 'Tickets'], (adv.research?.nearby || []).length && ['explore', 'Nearby'], adv.familyMode && state.family.kids.length && ['family', 'Family'], ['gear', 'Gear']].filter(Boolean).map(([k, l]) => `<a class="chip" href="#${k}" data-act="jump" data-to="${k}">${l}</a>`).join('')}
     </nav>
     ${timelineCard(adv)}
+    ${trailsCard(adv)}
+    ${adv.status !== 'planned' || adv.photoCount ? photosCard(adv, adv.status === 'done' ? '' : 'Add photos as you go. File each one under the stop where you took it.') : ''}
     ${weatherCard(adv)}
     ${foodCard(adv)}
     ${ticketsCard(adv)}
@@ -532,6 +539,8 @@ function live(id) {
         <h2>${CATS[cur.cat]?.e} ${esc(cur.name)}</h2>
         <span>${fmtDur(cur.dur)} here${sch.rows[i].drive ? ` · about ${fmtDur(sch.rows[i].drive)} away` : ''}</span>
         ${cur.tip ? `<span class="small">💡 ${esc(cur.tip)}</span>` : ''}
+        ${cur.trail ? `<span class="small">🥾 ${esc(cur.trail.name)} · ${dist(cur.trail.km)} · ${cur.trail.diff}</span>` : ''}
+        <label class="btn sm live-photo"><input type="file" accept="image/*" multiple hidden data-photo-add data-adv="${adv.id}" data-stop="${cur.id}">📷 Add photos here${(tripPhotos(adv) || []).filter(p => p.stop === cur.id).length ? ` (${(tripPhotos(adv) || []).filter(p => p.stop === cur.id).length})` : ''}</label>
         <div class="row">${cur.place ? `<a class="btn primary" style="flex:1" href="${mapsDir(cur.place)}" target="_blank" rel="noopener">Navigate ↗</a>` : ''}<button class="btn" style="flex:1" data-act="stop-done" data-sid="${cur.id}">Done here ✓</button></div>
       </div>` : `<div class="now-card"><span class="label">All stops done</span><h2>Nice work! 🎉</h2><span>Head home safe, then rate the day.</span>${adv.origin ? `<a class="btn primary" href="${mapsDir(adv.origin)}" target="_blank" rel="noopener">Navigate home ↗</a>` : ''}</div>`}
     ${food.length ? `<section class="card"><h2>Hungry?</h2><div class="list">${food.map(f => `<div class="li"><div class="ic">${f.cuisine.length ? cuisineInfo(f.cuisine[0])[1] : (AMENITY_FOOD[f.amenity] || ['', '🍽️'])[1]}</div><div class="main"><b>${esc(f.name)}</b><span class="small muted">${dist(f.d)} from ${esc(cur.name)}</span>${reviewsLink(f.name, f)}</div><a class="icon-btn" href="${mapsDir(f)}" target="_blank" rel="noopener" aria-label="Directions">↗</a></div>`).join('')}</div></section>` : ''}
@@ -558,6 +567,7 @@ function rateScreen(id) {
       <div class="list">${adv.stops.map(s => `<div class="li" data-stop="${s.id}"><div class="ic">${CATS[s.cat]?.e}</div><div class="main"><b>${esc(s.name)}</b><input type="text" data-sf-rate="tip" value="${esc(s.tip)}" placeholder="Tip for others (optional)" style="min-height:38px;margin-top:4px"></div>
         <div class="acts"><button class="icon-btn" data-act="like" data-v="1" style="${s.liked === true ? 'background:var(--good-soft)' : ''}" aria-label="Loved it">👍</button><button class="icon-btn" data-act="like" data-v="0" style="${s.liked === false ? 'background:var(--bad-soft)' : ''}" aria-label="Skip next time">👎</button></div></div>`).join('')}</div>
     </section>
+    ${photosCard(adv, 'Add your pictures from the day. Put each one under the stop where you took it, so every place keeps its own album.')}
     <section class="card">
       <label class="field"><span>The highlights</span><textarea id="r-review" placeholder="What made the day?">${esc(adv.review)}</textarea></label>
       <label class="field"><span>Advice for next time</span><textarea id="r-tips" placeholder="Go early, park at…, skip…">${esc(adv.tips)}</textarea></label>
@@ -723,7 +733,7 @@ document.addEventListener('click', async e => {
     case 'save-adv': saveDraft(); return;
     case 'del-adv':
       if (!confirm(`Delete “${d.title || 'this adventure'}”? This can’t be undone.`)) return;
-      state.adventures = state.adventures.filter(a => a.id !== d.id); save(); ui.draft = null; go(''); toast('Adventure deleted'); return;
+      state.adventures = state.adventures.filter(a => a.id !== d.id); save(); deleteTripPhotos(d.id); ui.draft = null; go(''); toast('Adventure deleted'); return;
     // detail
     case 'research': runResearch(adv); return;
     case 'food-filter': ui.foodFilter = el.dataset.f; keepScroll(); return;

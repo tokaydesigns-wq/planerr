@@ -306,10 +306,12 @@ async function loadIdeaExtras(p) {
   if (p.gallery || ideaLoading.has(p)) return;
   ideaLoading.add(p);
   const main = p.adv.stops.find(s => s.main);
-  const [imgs, about] = await Promise.all([
+  const [imgs, about, trails] = await Promise.all([
     p.wiki ? API.wikiImages(p.wiki).catch(() => []) : [],
     p.wiki ? API.wikiPage(p.wiki, 8, false).catch(() => null) : null,
+    TYPES[p.type]?.cat === 'hike' && main.place ? API.trails(main.place).catch(() => []) : null,
   ]);
+  if (trails) p.trails = trails;
   const slides = [], keys = new Set();
   const add = (img, caption, credit, page) => {
     if (!img) return;
@@ -394,6 +396,10 @@ function ideaDetail(i) {
       <p>${esc(main.desc || `${TYPES[a.type].label} destination about ${fmtDur(p.drive)} from ${a.origin.label}.`)}</p>
       ${main.url ? `<a class="small" href="${esc(main.url)}" target="_blank" rel="noopener">Read more on Wikipedia ↗</a>` : ''}
     </section>
+
+    ${TYPES[p.type]?.cat === 'hike' ? `<section class="card"><div class="card-head"><h2>Trails here</h2><span class="muted small">${p.trails ? p.trails.length + ' found' : ''}</span></div>
+      ${!p.trails ? '<span class="loading"><span class="spin"></span>Finding trails…</span>' : p.trails.length ? `<div class="stack">${p.trails.slice(0, 3).map(t => trailRow(t, { from: main.name })).join('')}</div>${trailNote}` : '<p class="muted small">No named trails are mapped right here. Check the park’s website for a trail map.</p>'}
+    </section>` : ''}
 
     <section class="card">
       <div class="card-head"><h2>Stop by stop</h2><span class="muted small">${fmtTime(toMin(a.start))} – ${fmtTime(p.home)}</span></div>
@@ -526,7 +532,7 @@ document.addEventListener('click', async e => {
     case 'idea-save': {
       restoreIdeas();
       const plan = ui.ideas.plans[+el.dataset.i], adv = plan.adv;
-      if (!state.adventures.some(a => a.id === adv.id)) { const copy = JSON.parse(JSON.stringify(adv)); refreshPacking(copy); state.adventures.push(copy); }
+      if (!state.adventures.some(a => a.id === adv.id)) { const copy = JSON.parse(JSON.stringify(adv)); if (plan.trails) copy.research.trails = plan.trails; refreshPacking(copy); state.adventures.push(copy); }
       plan.saved = true; save();
       go('a/' + adv.id); toast('Plan saved. Researching hours, tickets and gear…');
       return;

@@ -1,7 +1,7 @@
 'use strict';
 // Live data. Every source is free and needs no API key:
 //   Photon (place search)  · OSRM (drive times)  · Open-Meteo (weather)
-//   OpenStreetMap Overpass (hours, websites, food, family spots) · Nominatim (food, when Overpass is busy)
+//   Nominatim (hours, websites, food, trails) · OpenStreetMap Overpass (backup, family spots)
 //   Wikipedia (photos & descriptions)
 //   Supabase (community feed, optional; see config.js)
 
@@ -29,8 +29,8 @@ const elPoint = e => ({ lat: e.lat ?? e.center?.lat, lon: e.lon ?? e.center?.lon
 
 // Nominatim allows one request a second, so calls wait their turn in a queue.
 let nominatimTurn = Promise.resolve();
-function nominatim(params) {
-  const run = nominatimTurn.then(() => getJSON('https://nominatim.openstreetmap.org/search?format=jsonv2&' + new URLSearchParams(params)));
+function nominatim(params, path = 'search') {
+  const run = nominatimTurn.then(() => getJSON(`https://nominatim.openstreetmap.org/${path}?format=jsonv2&` + new URLSearchParams(params)));
   nominatimTurn = run.catch(() => {}).then(() => new Promise(r => setTimeout(r, 1100)));
   return run;
 }
@@ -98,12 +98,17 @@ const API = {
   },
 
   // Tags (hours, website, fee, wikipedia…) for places picked from search, looked up by their OSM id.
+  // Nominatim first (one quick request); the busy Overpass servers are the backup.
   async details(osmIds) {
     if (!osmIds.length) return {};
+    try {
+      const rows = await nominatim({ osm_ids: osmIds.slice(0, 50).join(','), extratags: 1 }, 'lookup');
+      if (rows.length) return Object.fromEntries(rows.map(r => [(r.osm_type || 'n')[0].toUpperCase() + r.osm_id, { name: r.name, ...(r.extratags || {}) }]));
+    } catch (e) {}
     const by = { N: [], W: [], R: [] };
     osmIds.forEach(id => by[id[0]]?.push(id.slice(1)));
     const parts = [['node', by.N], ['way', by.W], ['relation', by.R]].filter(([, ids]) => ids.length).map(([t, ids]) => `${t}(id:${ids.join(',')});`).join('');
-    const els = await overpass(`[out:json][timeout:20];(${parts});out tags center;`);
+    const els = await overpass(`[out:json][timeout:20];(${parts});out tags center;`, 8000);
     return Object.fromEntries(els.map(e => [e.type[0].toUpperCase() + e.id, e.tags || {}]));
   },
 
@@ -250,7 +255,7 @@ async function research(adv, onStep = () => {}) {
     } catch (e) {}
   }));
 
-  // Overpass allows few parallel requests per user, so these run one after another.
+  // Nominatim allows one request a second, so these run one after another.
   await step('hours', async () => {
     const ids = [...new Set(adv.stops.map(s => s.place?.osm).filter(Boolean))];
     R.details = ids.length ? await API.details(ids) : {};
@@ -269,6 +274,7 @@ async function research(adv, onStep = () => {}) {
     });
     R.food = list;
   });
+  if (isHikeAdv(adv)) await step('trails', async () => { const s = hikeStop(adv); R.trails = s?.place ? await API.trails(s.place) : []; });
   if (adv.familyMode && anchor) await step('family', async () => { R.family = await API.familySpots(anchor); });
   R.at = Date.now();
   refreshPacking(adv);
