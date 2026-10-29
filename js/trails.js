@@ -26,13 +26,23 @@ function connectedPart(lines, seed) {
   return part;
 }
 
-// A loop has no loose ends: every piece's two ends meet another piece's end (or its own, for a
-// single ring), within 30 m. A trail cut off by the search area keeps a loose end, so it isn't
-// called a loop; better to miss one than to promise a loop that isn't.
+// A loop is a closed ring. Pieces with a loose end (an end meeting no other piece's end within
+// 30 m) are trimmed away, again and again, which removes short spurs to a trailhead as well as
+// trails cut off by the search area. It's a loop when a ring is left that makes up most of the
+// trail; better to miss one than to promise a loop that isn't. Scraps under 10 m are ignored, and
+// a piece only meets itself if it's a ring on its own, or short pieces would glue loose ends shut.
 function isLoop(part) {
-  const pt = c => ({ lat: c[1], lon: c[0] });
-  const ends = part.flatMap((l, i) => [{ i, c: l[0] }, { i, c: l.at(-1) }]);
-  return ends.length > 0 && ends.every((e, k) => ends.some((o, j) => j !== k && haversine(pt(e.c), pt(o.c)) < .03));
+  const pt = c => ({ lat: c[1], lon: c[0] }), ends = l => [l[0], l.at(-1)];
+  const touch = (a, b) => haversine(pt(a), pt(b)) < .03;
+  let ring = part.filter(l => lineKm(l) >= .01);
+  const meets = (e, l) => ring.some(o => o === l ? lineKm(l) >= .1 && touch(l[0], l.at(-1)) : ends(o).some(c => touch(e, c)));
+  for (let trimmed = true; trimmed && ring.length;) {
+    const keep = ring.filter(l => ends(l).every(e => meets(e, l)));
+    trimmed = keep.length < ring.length;
+    ring = keep;
+  }
+  const km = ls => ls.reduce((a, l) => a + lineKm(l), 0);
+  return ring.length > 0 && km(ring) >= km(part) * .5;
 }
 
 const lineKm = pts => pts.slice(1).reduce((a, q, i) => a + haversine({ lat: pts[i][1], lon: pts[i][0] }, { lat: q[1], lon: q[0] }), 0);
