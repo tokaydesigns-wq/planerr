@@ -72,10 +72,11 @@ function seasonRisk(elev, date) {
 }
 
 // Checks the drive in to a destination: road tags near the end, elevation, and snow on the ground.
-API.access = async function (from, to, date) {
+// roads=false skips sampling the road in (used for city-type days, where seasonal gates are rare).
+API.access = async function (from, to, date, roads = true) {
   const out = { roads: [], elev: null, snowDepth: null, at: Date.now() };
   const [route, wx] = await Promise.all([
-    from ? getJSON(`https://router.project-osrm.org/route/v1/driving/${from.lon.toFixed(5)},${from.lat.toFixed(5)};${to.lon.toFixed(5)},${to.lat.toFixed(5)}?overview=full&geometries=geojson`).catch(() => null) : null,
+    from && roads ? getJSON(`https://router.project-osrm.org/route/v1/driving/${from.lon.toFixed(5)},${from.lat.toFixed(5)};${to.lon.toFixed(5)},${to.lat.toFixed(5)}?overview=full&geometries=geojson`).catch(() => null) : null,
     daysUntil(date) >= 0 && daysUntil(date) <= 15
       ? getJSON(`https://api.open-meteo.com/v1/forecast?latitude=${to.lat}&longitude=${to.lon}&timezone=auto&start_date=${date}&end_date=${date}&hourly=snow_depth&daily=snowfall_sum`).catch(() => null)
       : getJSON(`https://api.open-meteo.com/v1/elevation?latitude=${to.lat}&longitude=${to.lon}`).then(e => ({ elevation: e.elevation?.[0] })).catch(() => null),
