@@ -1,7 +1,8 @@
 'use strict';
 // Live data. Every source is free and needs no API key:
 //   Photon (place search)  · OSRM (drive times)  · Open-Meteo (weather)
-//   OpenStreetMap Overpass (hours, websites, food, family spots) · Wikipedia (photos & descriptions)
+//   OpenStreetMap Overpass (hours, websites, food, family spots) · Nominatim (food, when Overpass is busy)
+//   Wikipedia (photos & descriptions)
 //   Supabase (community feed, optional; see config.js)
 
 async function getJSON(url, opts) {
@@ -25,6 +26,42 @@ async function overpass(query, perServerMs = 20000) {
   throw last;
 }
 const elPoint = e => ({ lat: e.lat ?? e.center?.lat, lon: e.lon ?? e.center?.lon });
+
+// Nominatim allows one request a second, so calls wait their turn in a queue.
+let nominatimTurn = Promise.resolve();
+function nominatim(params) {
+  const run = nominatimTurn.then(() => getJSON('https://nominatim.openstreetmap.org/search?format=jsonv2&' + new URLSearchParams(params)));
+  nominatimTurn = run.catch(() => {}).then(() => new Promise(r => setTimeout(r, 1100)));
+  return run;
+}
+
+const foodItem = (id, name, amenity, pt, t) => ({
+  id, name, amenity, ...pt,
+  cuisine: (t.cuisine || '').toLowerCase().split(/[;,]/).map(s => s.trim()).filter(Boolean),
+  hours: t.opening_hours || null, website: t.website || t['contact:website'] || null,
+  diet: Object.fromEntries(Object.keys(DIETS).map(d => [d, t['diet:' + d] || null])),
+  takeaway: t.takeaway || null, outdoor: t.outdoor_seating || null,
+});
+
+// Restaurants and cafés within about 2.5 km of each point, from Nominatim's category search.
+async function nominatimFood(points) {
+  const seen = new Set(), out = [];
+  for (const p of points.slice(0, 5)) {
+    const dLat = .0225, dLon = .0225 / Math.cos(p.lat * Math.PI / 180);
+    const box = [p.lon - dLon, p.lat + dLat, p.lon + dLon, p.lat - dLat].map(n => n.toFixed(5)).join(',');
+    for (const q of ['restaurant', 'cafe']) {
+      let rows = [];
+      try { rows = await nominatim({ q, viewbox: box, bounded: 1, limit: 30, extratags: 1 }); } catch (e) { continue; }
+      for (const r of rows) {
+        const id = (r.osm_type || 'n')[0].toUpperCase() + r.osm_id;
+        if (!r.name || seen.has(id) || !/^(restaurant|cafe|fast_food|ice_cream|pub)$/.test(r.type)) continue;
+        seen.add(id);
+        out.push(foodItem(id, r.name, r.type, { lat: +r.lat, lon: +r.lon }, r.extratags || {}));
+      }
+    }
+  }
+  return out;
+}
 
 const API = {
   async searchPlaces(q, near) {
@@ -70,19 +107,15 @@ const API = {
     return Object.fromEntries(els.map(e => [e.type[0].toUpperCase() + e.id, e.tags || {}]));
   },
 
-  async food(points, perServerMs) {
+  // Nominatim first: it answers in about a second. The Overpass servers are often too busy,
+  // so they're only a backup when Nominatim finds nothing.
+  async food(points, perServerMs = 8000) {
+    let list = [];
+    try { list = await nominatimFood(points); } catch (e) {}
+    if (list.length) return list;
     const parts = points.map(p => `nwr(around:2500,${p.lat.toFixed(5)},${p.lon.toFixed(5)})["amenity"~"^(restaurant|cafe|fast_food|ice_cream|pub)$"]["name"];`).join('');
     const els = await overpass(`[out:json][timeout:25];(${parts});out tags center 120;`, perServerMs);
-    return els.map(e => {
-      const t = e.tags, pt = elPoint(e);
-      return {
-        id: e.type[0].toUpperCase() + e.id, name: t.name, amenity: t.amenity, ...pt,
-        cuisine: (t.cuisine || '').toLowerCase().split(/[;,]/).map(s => s.trim()).filter(Boolean),
-        hours: t.opening_hours || null, website: t.website || t['contact:website'] || null,
-        diet: Object.fromEntries(Object.keys(DIETS).map(d => [d, t['diet:' + d] || null])),
-        takeaway: t.takeaway || null, outdoor: t.outdoor_seating || null,
-      };
-    }).filter(f => f.lat != null);
+    return els.map(e => foodItem(e.type[0].toUpperCase() + e.id, e.tags.name, e.tags.amenity, elPoint(e), e.tags)).filter(f => f.lat != null);
   },
 
   async familySpots(p) {

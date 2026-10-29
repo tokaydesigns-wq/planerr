@@ -40,10 +40,10 @@ const whenLabel = adv => {
 // ---------- render ----------
 function render() {
   const { view, id } = parseRoute();
-  const screens = { home, ideas: ideasScreen, idea: () => ideaDetail(id), new: () => formScreen(null), edit: () => formScreen(id), a: () => detail(id), brief: () => briefing(id), live: () => live(id), rate: () => rateScreen(id), explore: () => explore(id), family, you };
+  const screens = { home, ideas: ideasScreen, idea: () => ideaDetail(id), chat: chatScreen, new: () => formScreen(null), edit: () => formScreen(id), a: () => detail(id), brief: () => briefing(id), live: () => live(id), rate: () => rateScreen(id), explore: () => explore(id), family, you };
   const fn = screens[view] || home;
   $('#app').innerHTML = fn();
-  const tab = { new: 'new', edit: 'new', ideas: 'new', idea: 'new', explore: 'explore', family: 'family', you: 'you' }[view] || 'home';
+  const tab = { new: 'new', edit: 'new', ideas: 'new', idea: 'new', chat: 'home', explore: 'explore', family: 'family', you: 'you' }[view] || 'home';
   $$('#tabbar a').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));
   $('#tabbar').hidden = view === 'brief';
   afterRender(view, id);
@@ -55,6 +55,7 @@ function afterRender(view, id) {
   if ((view === 'a' || view === 'brief') && adv && !adv.research?.at && !ui.busy[id]) runResearch(adv);
   if (view === 'explore' && !ui.community && !ui.loadingCommunity) loadCommunity();
   if (view === 'idea') setupIdeaDetail(id);
+  if (view === 'chat') setupChat();
 }
 
 async function runResearch(adv) {
@@ -96,7 +97,8 @@ function home() {
   return `<div class="screen">
     <header class="greet"><span class="eyebrow">${fmtDate(todayStr(), { weekday: 'long', month: 'long', day: 'numeric' })}</span><h1>${hi}${name ? ', ' + esc(name) : ''}.</h1></header>
     ${homeBanner(next ? (next.status === 'active' ? 'Adventure in progress! Let’s roll.' : `${whenLabel(next)}: ${esc(next.title)}!`) : 'Where are we going today?')}
-    <a class="idea-cta" href="#/ideas"><span class="e">✨</span><span><b>Get 3 trip ideas</b><small>Set how far you'll drive and what you like. Planerr builds the plans.</small></span><span class="go">→</span></a>
+    ${chatStarter()}
+    <a class="idea-cta" href="#/ideas"><span class="e">✨</span><span><b>Or pick settings yourself</b><small>Choose drive time, kinds of day and food. Planerr builds 3 plans.</small></span><span class="go">→</span></a>
     ${next ? `
       <a class="hero tall" href="#/a/${next.id}" style="text-decoration:none">
         ${heroMedia(next)}
@@ -329,7 +331,7 @@ function timelineCard(adv) {
 
 function foodCard(adv) {
   const R = adv.research || {};
-  if (!R.food) return `<section class="card" id="food"><h2>Food along the way</h2><p class="muted">${ui.busy[adv.id] ? stepBadge(adv.id, 'food', 'Finding places to eat…') : R.errors?.food ? 'Couldn’t reach OpenStreetMap. Try Refresh research below.' : 'Add a destination to find food nearby.'}</p></section>`;
+  if (!R.food) return `<section class="card" id="food"><h2>Food along the way</h2><p class="muted">${ui.busy[adv.id] ? stepBadge(adv.id, 'food', 'Finding places to eat…') : R.errors?.food ? 'Couldn’t load restaurants right now. Try Refresh research below.' : 'Add a destination to find food nearby.'}</p></section>`;
   const votes = state.profile.votes || {};
   const planned = new Set(adv.stops.map(s => s.place?.osm));
   let list = R.food.filter(f => !planned.has(f.id) && votes[f.id] !== -1).map(f => ({ ...f, score: tasteScore(f) }));

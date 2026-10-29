@@ -4,6 +4,7 @@ A phone-first web app for planning day-trip adventures. Add it to your home scre
 
 ## What it does
 
+- **Plan with Pip**: describe your day in your own words on the Home screen ("easy hike with the kids Saturday, under an hour away, tacos after"). Pip, the camper-van mascot, picks out the kinds of day, drive time, date, times, group, food, diet, budget and starting town, fills in the trip-ideas settings and builds the 3 plans. It reads keywords in the browser; no AI service or key is involved.
 - **Trip ideas**: enter your starting point, the longest drive you want each way, the date and times, the kinds of day you're into, the food you like, a budget and whether the kids are coming. Planerr finds well-known real places within that drive (Wikidata), checks the actual drive time and that day's weather for each, picks restaurants that match your taste, adds sights nearby, and builds **3 different day plans**. Tap **Save this plan**, or **Show me 3 different plans** for more.
 - **Plan an adventure**: type of day, date, leave/back-by times, starting point, main destination, stops along the way, budget, people, and kids.
 - **Research on its own** when you save a plan:
@@ -54,7 +55,7 @@ The anon key is meant to be public. Row Level Security lets anyone read and post
 
 - **Opening hours** come from OpenStreetMap volunteers. They're good for big attractions and patchier for small businesses, so confirm anything important on the official site.
 - **Drive times** don't include traffic.
-- **Restaurant data** comes from the public OpenStreetMap servers (Overpass), which are sometimes overloaded. When that happens, ideas get a lunch placeholder, and the saved plan fills in real places once the server responds. Use **Refresh** under Research to retry.
+- **Restaurant data** comes from OpenStreetMap through Nominatim (about one request a second), with the Overpass servers as a backup. If both are unavailable, ideas get a lunch placeholder with a link to nearby restaurants in Google Maps. Use **Refresh** under Research to retry. Each restaurant has a **Google reviews** link that opens its Google Maps listing.
 - **Photos** come from Wikipedia. Landmarks, parks and towns usually have one; small businesses usually don't, so those get an illustration instead.
 - **Ticket steps** are general guidance. Prices and availability come from the venue's own site.
 

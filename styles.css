@@ -409,3 +409,34 @@ details summary { cursor: pointer; font-weight: 700; }
 @media (prefers-reduced-motion: reduce) {
   .screen, .bubble, .pip.bob .pip-body, .cloud.drift, .sun .rays, .road-dash, .mini-road { animation: none; }
 }
+
+/* ---------- chat with Pip ---------- */
+.chat-start { display: grid; gap: 12px; padding: 14px; border-radius: 22px; background: var(--surface); border: 2.5px solid var(--outline); box-shadow: var(--pop); }
+.cs-head { display: grid; grid-template-columns: 64px 1fr; gap: 12px; align-items: center; }
+.cs-head b { display: block; font-family: var(--display); font-size: 1.15rem; line-height: 1.15; }
+.cs-head small { display: block; color: var(--muted); font-size: .86rem; margin-top: 2px; }
+.composer { display: grid; grid-template-columns: 1fr 48px; gap: 8px; align-items: end; }
+.composer textarea { min-height: 48px; max-height: 140px; resize: none; border-radius: 16px; padding: 12px 14px; line-height: 1.35; }
+.composer .send { width: 48px; height: 48px; border-radius: 16px; border: 2.5px solid var(--outline); background: linear-gradient(145deg, #FF7A45, var(--coral)); color: #fff; display: grid; place-items: center; cursor: pointer; box-shadow: 0 3px 0 var(--outline); }
+.composer .send:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--outline); }
+.chat-screen { padding-bottom: 92px; animation: none; }
+.chat-screen > .composer { position: fixed; left: 0; right: 0; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px)); z-index: 15; padding: 10px max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px)); background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid var(--line); max-width: 600px; margin: 0 auto; }
+.chat { display: grid; gap: 14px; }
+.msg { display: flex; gap: 8px; align-items: flex-end; min-width: 0; animation: rise .3s ease-out both; }
+.msg .bub { padding: 11px 14px; border-radius: 20px; max-width: 84%; min-width: 0; line-height: 1.45; overflow-wrap: anywhere; }
+.msg .bub > * { margin-top: 8px; }
+.pip-msg .av { width: 46px; flex: 0 0 46px; }
+.pip-msg .bub { background: var(--surface); border: 2px solid var(--outline); border-bottom-left-radius: 6px; box-shadow: 2px 3px 0 var(--outline); }
+.me-msg { justify-content: flex-end; }
+.me-msg .bub { background: linear-gradient(145deg, #FF7A45, var(--coral)); color: #fff; border-bottom-right-radius: 6px; font-weight: 500; }
+.chat-sum { display: grid; gap: 4px; background: var(--surface-2); border-radius: 14px; padding: 10px 12px; }
+.chat-sum > div { display: grid; grid-template-columns: 22px 1fr; gap: 6px; align-items: start; }
+.chat-examples { padding-left: 54px; }
+.chat-examples .chip { text-align: left; white-space: normal; font-weight: 500; border-radius: 14px; }
+.chat-origin { margin-left: 54px; }
+.typing { display: flex !important; gap: 5px; padding: 14px 16px !important; }
+.typing i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); animation: blink 1s infinite; }
+.typing i:nth-child(2) { animation-delay: .15s; }
+.typing i:nth-child(3) { animation-delay: .3s; }
+@keyframes blink { 50% { opacity: .25; transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .msg, .typing i { animation: none; } }
