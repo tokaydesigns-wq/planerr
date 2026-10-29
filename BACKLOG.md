@@ -14,7 +14,7 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 ## Up next
 
 - [ ] `[polish]` Trip ideas take 30+ seconds. Find the slowest step (Nominatim's one-request-a-second queue is the likely cause) and speed it up without dropping the closure, food or trail checks.
-- [ ] `[feature]` Trails: count the whole trail, not just the part within about 4 miles of the stop. Also mark loop trails vs. out-and-back when the map data shows it.
+- [ ] `[feature]` Trails, second slice: count the whole trail, not just the part within about 4 miles of the stop (needs a wider Nominatim lookup, so do it after the speed-up PR lands). Also mark out-and-back trails; loops are now marked.
 - [ ] `[feature]` Pip chat: understand more phrasings (for example "something to do with my dog", "not too hot", "somewhere new", "rainy day backup") and suggest one follow-up question when the description is thin.
 - [ ] `[polish]` Restaurants: when a plan ends up with "Lunch near…" because no restaurant was found within 6 km, widen the search before giving up.
 - [ ] `[feature]` Photos: a "Trip recap" view that shows each stop with its photos, rating and notes as one scrolling story.
@@ -23,7 +23,7 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## In review
 
-- (pull requests waiting for the owner)
+- Show which trails are loops (first slice of the Trails item)
 
 ## Needs the owner
 
