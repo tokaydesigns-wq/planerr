@@ -26,6 +26,25 @@ function connectedPart(lines, seed) {
   return part;
 }
 
+// A loop is a closed ring. Pieces with a loose end (an end meeting no other piece's end within
+// 30 m) are trimmed away, again and again, which removes short spurs to a trailhead as well as
+// trails cut off by the search area. It's a loop when a ring is left that makes up most of the
+// trail; better to miss one than to promise a loop that isn't. Scraps under 10 m are ignored, and
+// a piece only meets itself if it's a ring on its own, or short pieces would glue loose ends shut.
+function isLoop(part) {
+  const pt = c => ({ lat: c[1], lon: c[0] }), ends = l => [l[0], l.at(-1)];
+  const touch = (a, b) => haversine(pt(a), pt(b)) < .03;
+  let ring = part.filter(l => lineKm(l) >= .01);
+  const meets = (e, l) => ring.some(o => o === l ? lineKm(l) >= .1 && touch(l[0], l.at(-1)) : ends(o).some(c => touch(e, c)));
+  for (let trimmed = true; trimmed && ring.length;) {
+    const keep = ring.filter(l => ends(l).every(e => meets(e, l)));
+    trimmed = keep.length < ring.length;
+    ring = keep;
+  }
+  const km = ls => ls.reduce((a, l) => a + lineKm(l), 0);
+  return ring.length > 0 && km(ring) >= km(part) * .5;
+}
+
 const lineKm = pts => pts.slice(1).reduce((a, q, i) => a + haversine({ lat: pts[i][1], lon: pts[i][0] }, { lat: q[1], lon: q[0] }), 0);
 
 function trailDifficulty(km, climb, sac) {
@@ -73,7 +92,7 @@ API.trails = async function (p) {
     const step = Math.max(1, Math.floor(pts.length / 12));
     return {
       name: g.name, km: part.reduce((a, l) => a + lineKm(l), 0), climb: 0,
-      start: { lat: near.c[1], lon: near.c[0] }, away: near.d,
+      start: { lat: near.c[1], lon: near.c[0] }, away: near.d, loop: isLoop(part),
       samples: pts.filter((_, i) => i % step === 0).slice(0, 12),
       surface: tags.surface || null, dog: tags.dog || null, sac: tags.sac_scale || null,
       wheelchair: tags.wheelchair || null, id: [...g.ids][0],
@@ -108,7 +127,7 @@ function trailRow(t, opts = {}) {
     <div class="trail-head">
       <div class="trail-ic">🥾</div>
       <div class="main"><b>${esc(t.name)}</b><span class="small muted">${t.away < .3 ? 'Starts right here' : `Starts ${dist(t.away)} from ${esc(opts.from || 'the stop')}`}</span></div>
-      <span class="pill ${diffClass(t.diff)}">${t.diff}</span>
+      <div class="row" style="gap:6px">${t.loop ? '<span class="pill line">🔁 Loop</span>' : ''}<span class="pill ${diffClass(t.diff)}">${t.diff}</span></div>
     </div>
     <div class="trail-stats">
       <div><span class="k">Length</span><b>${dist(t.km)}</b></div>
@@ -125,7 +144,7 @@ function trailRow(t, opts = {}) {
   </div>`;
 }
 
-const trailNote = '<p class="note">Lengths cover the part of each trail within about 4 miles of the stop. Walk time is for that length at an easy pace; going out and back doubles it. Climb is the gap between the lowest and highest points. Check trail conditions before you go.</p>';
+const trailNote = '<p class="note">Lengths cover the part of each trail within about 4 miles of the stop. Walk time is for that length at an easy pace; going out and back doubles it, but a loop doesn’t. Climb is the gap between the lowest and highest points. Check trail conditions before you go.</p>';
 
 function trailsCard(adv) {
   if (!isHikeAdv(adv)) return '';
