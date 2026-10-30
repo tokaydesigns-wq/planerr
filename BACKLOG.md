@@ -13,7 +13,7 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## Up next
 
-- [ ] `[feature]` Trails, second slice: count the whole trail, not just the part within about 4 miles of the stop (needs a wider Nominatim lookup). Also mark out-and-back trails; loops are now marked.
+- [ ] `[feature]` Trails, second slice: count the whole trail, not just the part within about 4 miles of the stop (needs a wider Nominatim lookup). Loops and out-and-back trails are now marked.
 - [ ] `[feature]` Pip chat: understand more phrasings (for example "something to do with my dog", "not too hot", "somewhere new", "rainy day backup") and suggest one follow-up question when the description is thin.
 - [ ] `[polish]` Restaurants: when a plan ends up with "Lunch near…" because no restaurant was found within 6 km, widen the search before giving up.
 - [ ] `[feature]` Photos: a "Trip recap" view that shows each stop with its photos, rating and notes as one scrolling story.
@@ -22,7 +22,7 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## In review
 
-- Show which trails are loops (first slice of the Trails item)
+- Mark out-and-back trails (second slice of the Trails item; the wider trail count is still to do)
 
 ## Needs the owner
 
@@ -38,6 +38,7 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## Done
 
+- [x] Show which trails are loops (first slice of the Trails item)
 - [x] Trip ideas about twice as fast (25 s → about 11 s)
 - [x] Google reviews button on restaurants and trails
 - [x] Cartoon art (Pip), home banner, polished look
