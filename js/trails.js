@@ -45,6 +45,15 @@ function isLoop(part) {
   return ring.length > 0 && km(ring) >= km(part) * .5;
 }
 
+// Out and back: one plain path with exactly two loose ends and no junction, and nowhere near the
+// edge of the search area, so a trail that was just cut off by the edge isn't mislabeled.
+function isOutAndBack(part, box) {
+  const pt = c => ({ lat: c[1], lon: c[0] }), ends = part.filter(l => lineKm(l) >= .01).flatMap(l => [l[0], l.at(-1)]);
+  if (part.flat().some(c => c[0] < box.w || c[0] > box.e || c[1] < box.s || c[1] > box.n)) return false;
+  const meets = ends.map((e, i) => ends.filter((o, j) => j !== i && haversine(pt(e), pt(o)) < .03).length);
+  return meets.every(m => m <= 1) && meets.filter(m => m === 0).length === 2;
+}
+
 const lineKm = pts => pts.slice(1).reduce((a, q, i) => a + haversine({ lat: pts[i][1], lon: pts[i][0] }, { lat: q[1], lon: q[0] }), 0);
 
 function trailDifficulty(km, climb, sac) {
@@ -79,6 +88,8 @@ API.trails = async function (p) {
       .filter(r => r.category === 'highway' && (r.name || '').toLowerCase() === g.name.toLowerCase());
   }
 
+  // Stay 150 m inside the search area; the sides are about 3.8 miles from the stop.
+  const m = .0014, box = { w: p.lon - dl + m / Math.cos(p.lat * Math.PI / 180), e: p.lon + dl - m / Math.cos(p.lat * Math.PI / 180), s: p.lat - d + m, n: p.lat + d - m };
   const trails = top.map(g => {
     const lines = [], tags = {};
     g.rows.forEach(r => {
@@ -88,11 +99,11 @@ API.trails = async function (p) {
     });
     if (!lines.length) return null;
     const near = lines.flat().reduce((b, c) => { const dd = haversine(p, { lat: c[1], lon: c[0] }); return dd < b.d ? { d: dd, c } : b; }, { d: Infinity, c: null });
-    const part = connectedPart(lines, near.c), pts = part.flat();
+    const part = connectedPart(lines, near.c), pts = part.flat(), loop = isLoop(part);
     const step = Math.max(1, Math.floor(pts.length / 12));
     return {
       name: g.name, km: part.reduce((a, l) => a + lineKm(l), 0), climb: 0,
-      start: { lat: near.c[1], lon: near.c[0] }, away: near.d, loop: isLoop(part),
+      start: { lat: near.c[1], lon: near.c[0] }, away: near.d, loop, outBack: !loop && isOutAndBack(part, box),
       samples: pts.filter((_, i) => i % step === 0).slice(0, 12),
       surface: tags.surface || null, dog: tags.dog || null, sac: tags.sac_scale || null,
       wheelchair: tags.wheelchair || null, id: [...g.ids][0],
@@ -127,7 +138,7 @@ function trailRow(t, opts = {}) {
     <div class="trail-head">
       <div class="trail-ic">🥾</div>
       <div class="main"><b>${esc(t.name)}</b><span class="small muted">${t.away < .3 ? 'Starts right here' : `Starts ${dist(t.away)} from ${esc(opts.from || 'the stop')}`}</span></div>
-      <div class="row" style="gap:6px">${t.loop ? '<span class="pill line">🔁 Loop</span>' : ''}<span class="pill ${diffClass(t.diff)}">${t.diff}</span></div>
+      <div class="row" style="gap:6px">${t.loop ? '<span class="pill line">🔁 Loop</span>' : t.outBack ? '<span class="pill line">↔ Out &amp; back</span>' : ''}<span class="pill ${diffClass(t.diff)}">${t.diff}</span></div>
     </div>
     <div class="trail-stats">
       <div><span class="k">Length</span><b>${dist(t.km)}</b></div>
