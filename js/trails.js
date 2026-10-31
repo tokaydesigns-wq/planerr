@@ -2,7 +2,7 @@
 // Recommended trails for hikes. Photon finds named paths near the hike, Nominatim returns their
 // map shapes (to measure length), and Open-Meteo gives elevations along them (to size the climb).
 // OpenStreetMap stores a trail as many short pieces, so pieces are grouped by trail name and
-// lengths count only the pieces within about 6 km of the stop.
+// lengths count the pieces within about 4 miles of the stop; a trail that runs off that area gets one wider lookup.
 
 const TRAIL_TAGS = ['highway:path', 'highway:footway', 'highway:track', 'highway:bridleway'].map(t => 'osm_tag=' + t).join('&');
 const isHikeAdv = adv => TYPES[adv.type]?.cat === 'hike' || adv.stops.some(s => s.cat === 'hike');
@@ -65,6 +65,26 @@ function trailDifficulty(km, climb, sac) {
 // Walking time for the length found, using Naismith's rule: 4.5 km/h plus an hour per 600 m of climb.
 const trailMinutes = t => Math.round((t.km / 4.5 + t.climb / 600) * 60 / 15) * 15 || 15;
 
+// Every piece of a named trail inside a search area (Nominatim, dedupe=0 so same-named pieces all come back).
+const trailRows = (g, a) => nominatim({ q: g.name, viewbox: [a.w, a.n, a.e, a.s].map(n => n.toFixed(5)).join(','), bounded: 1, limit: 50, dedupe: 0, polygon_geojson: 1, polygon_threshold: .00005, extratags: 1 }).catch(() => [])
+  .then(rows => rows.filter(r => r.category === 'highway' && (r.name || '').toLowerCase() === g.name.toLowerCase()));
+
+// The pieces of a trail that join up to the one nearest the stop, plus that nearest point.
+function trailPart(g, p) {
+  const lines = [];
+  g.rows.forEach(r => {
+    const gj = r.geojson;
+    (gj?.type === 'LineString' ? [gj.coordinates] : gj?.type === 'MultiLineString' ? gj.coordinates : []).forEach(l => lines.push(l));
+  });
+  if (!lines.length) return null;
+  const near = lines.flat().reduce((b, c) => { const dd = haversine(p, { lat: c[1], lon: c[0] }); return dd < b.d ? { d: dd, c } : b; }, { d: Infinity, c: null });
+  return { part: connectedPart(lines, near.c), near };
+}
+
+// The search area shrunk by 150 m: a trail reaching it was probably cut off by the area's edge.
+const innerBox = (a, lat) => { const m = .0014; return { w: a.w + m / Math.cos(lat * Math.PI / 180), e: a.e - m / Math.cos(lat * Math.PI / 180), s: a.s + m, n: a.n - m }; };
+const reachesEdge = (part, box) => part.flat().some(c => c[0] < box.w || c[0] > box.e || c[1] < box.s || c[1] > box.n);
+
 API.trails = async function (p) {
   const d = .055, dl = d / Math.cos(p.lat * Math.PI / 180);
   const bbox = [p.lon - dl, p.lat - d, p.lon + dl, p.lat + d].map(n => n.toFixed(5)).join(',');
@@ -82,24 +102,21 @@ API.trails = async function (p) {
   // Photon merges same-named pieces, so it only finds the names. Nominatim with dedupe=0 then
   // returns every piece of each trail with its shape (one request a second, so the top 6 only).
   const top = [...groups.values()].sort((a, b) => a.near - b.near).slice(0, 6);
-  const nbox = [p.lon - dl, p.lat + d, p.lon + dl, p.lat - d].map(n => n.toFixed(5)).join(',');
-  for (const g of top) {
-    g.rows = (await nominatim({ q: g.name, viewbox: nbox, bounded: 1, limit: 50, dedupe: 0, polygon_geojson: 1, polygon_threshold: .00005, extratags: 1 }).catch(() => []))
-      .filter(r => r.category === 'highway' && (r.name || '').toLowerCase() === g.name.toLowerCase());
+  const area = k => { const dd = d * k, ll = dl * k; return { w: p.lon - ll, e: p.lon + ll, s: p.lat - dd, n: p.lat + dd }; };
+  for (const g of top) { g.area = area(1); g.rows = await trailRows(g, g.area); }
+
+  // A trail that runs off the edge gets one wider lookup (about 3x the area, so up to ~12 miles out),
+  // for the first 3 only to stay inside Nominatim's one-a-second limit. If it fails, keep the first result.
+  for (const g of top.filter(g => { const t = trailPart(g, p); return t && reachesEdge(t.part, innerBox(g.area, p.lat)); }).slice(0, 3)) {
+    const wide = area(3), rows = await trailRows(g, wide);
+    if (rows.length) { g.rows = rows; g.area = wide; }
   }
 
-  // Stay 150 m inside the search area; the sides are about 3.8 miles from the stop.
-  const m = .0014, box = { w: p.lon - dl + m / Math.cos(p.lat * Math.PI / 180), e: p.lon + dl - m / Math.cos(p.lat * Math.PI / 180), s: p.lat - d + m, n: p.lat + d - m };
   const trails = top.map(g => {
-    const lines = [], tags = {};
-    g.rows.forEach(r => {
-      const gj = r.geojson;
-      (gj?.type === 'LineString' ? [gj.coordinates] : gj?.type === 'MultiLineString' ? gj.coordinates : []).forEach(l => lines.push(l));
-      Object.assign(tags, r.extratags || {});
-    });
-    if (!lines.length) return null;
-    const near = lines.flat().reduce((b, c) => { const dd = haversine(p, { lat: c[1], lon: c[0] }); return dd < b.d ? { d: dd, c } : b; }, { d: Infinity, c: null });
-    const part = connectedPart(lines, near.c), pts = part.flat(), loop = isLoop(part);
+    const found = trailPart(g, p);
+    if (!found) return null;
+    const { part, near } = found, tags = {}, box = innerBox(g.area, p.lat), pts = part.flat(), loop = isLoop(part);
+    g.rows.forEach(r => Object.assign(tags, r.extratags || {}));
     const step = Math.max(1, Math.floor(pts.length / 12));
     return {
       name: g.name, km: part.reduce((a, l) => a + lineKm(l), 0), climb: 0,
