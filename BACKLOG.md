@@ -13,15 +13,15 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## Up next
 
-- [ ] `[feature]` Pip chat: understand more phrasings (for example "something to do with my dog", "not too hot", "somewhere new", "rainy day backup") and suggest one follow-up question when the description is thin.
 - [ ] `[polish]` Restaurants: when a plan ends up with "Lunch near…" because no restaurant was found within 6 km, widen the search before giving up.
 - [ ] `[feature]` Photos: a "Trip recap" view that shows each stop with its photos, rating and notes as one scrolling story.
 - [ ] `[feature]` Export or back up photos and adventures to a file, since everything lives on one phone.
 - [ ] `[polish]` Closures: check the road in for every stop with a place, not only the main destination.
+- [ ] `[feature]` Pip: make "somewhere new" skip places from your past adventures.
 
 ## In review
 
-- Count the whole trail: trails that run past the ~4 mile search area get one wider lookup (Trails, third slice)
+- Pip understands more phrasings and asks one follow-up question (dog, not too hot, somewhere new, backup plans)
 
 ## Needs the owner
 
@@ -37,6 +37,7 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## Done
 
+- [x] Count the whole trail: trails that run past the ~4 mile search area get one wider lookup
 - [x] Mark out-and-back trails (Trails, second slice)
 - [x] Show which trails are loops (first slice of the Trails item)
 - [x] Trip ideas about twice as fast (25 s → about 11 s)
