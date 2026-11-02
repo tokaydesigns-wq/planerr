@@ -13,16 +13,14 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## Up next
 
-- [ ] `[feature]` Trails, second slice: count the whole trail, not just the part within about 4 miles of the stop (needs a wider Nominatim lookup). Loops and out-and-back trails are now marked.
-- [ ] `[feature]` Pip chat: understand more phrasings (for example "something to do with my dog", "not too hot", "somewhere new", "rainy day backup") and suggest one follow-up question when the description is thin.
 - [ ] `[feature]` Photos: a "Trip recap" view that shows each stop with its photos, rating and notes as one scrolling story.
 - [ ] `[feature]` Export or back up photos and adventures to a file, since everything lives on one phone.
 - [ ] `[polish]` Closures: check the road in for every stop with a place, not only the main destination.
+- [ ] `[feature]` Pip: make "somewhere new" skip places from your past adventures.
 
 ## In review
 
-- Widen the restaurant search before falling back to "Lunch near…" (nightly/2026-11-02-wider-lunch-search)
-- Mark out-and-back trails (second slice of the Trails item; the wider trail count is still to do)
+- (pull requests waiting for the owner)
 
 ## Needs the owner
 
@@ -33,11 +31,15 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 ## Known limits (not bugs)
 
 - Free map data misses some closures. For example, Brainard Lake Road (to Mount Audubon) isn't tagged as seasonal, so the elevation check is what catches it.
-- Trail lengths only count the pieces within about 4 miles of the stop.
+- Trail lengths count pieces within about 4 miles of the stop; a trail that runs off that area gets one wider lookup (up to about 12 miles), for the first 3 such trails only.
 - Photos are stored on the phone only and aren't backed up.
 
 ## Done
 
+- [x] Wider lunch search: about 9 km out before falling back to "Lunch near…"
+- [x] Pip understands more phrasings and asks one follow-up question (dog, not too hot, somewhere new, backup plans)
+- [x] Count the whole trail: trails that run past the ~4 mile search area get one wider lookup
+- [x] Mark out-and-back trails (Trails, second slice)
 - [x] Show which trails are loops (first slice of the Trails item)
 - [x] Trip ideas about twice as fast (25 s → about 11 s)
 - [x] Google reviews button on restaurants and trails

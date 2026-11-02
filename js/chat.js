@@ -15,7 +15,7 @@ const CHAT_TYPES = {
   roadtrip: /\b(road ?trip|scenic drive|cruis(e|ing)|drive around|back ?roads)\b/,
   snow: /\b(snow|ski(ing)?|snowboard(ing)?|sledding|sled)\b/,
 };
-const CHAT_MOODS = [[/\b(chill|relax(ing|ed)?|easy|lazy|calm|peaceful)\b/, ['park', 'lake']], [/\b(adventur(e|ous)|thrill(ing)?|exciting|active|epic)\b/, ['hike', 'themepark']], [/\b(romantic|date)\b/, ['city', 'park']], [/\b(rain(y)?|indoors?)\b/, ['museum', 'city']]];
+const CHAT_MOODS = [[/\b(chill|relax(ing|ed)?|easy|lazy|calm|peaceful)\b/, ['park', 'lake']], [/\b(adventur(e|ous)|thrill(ing)?|exciting|active|epic)\b/, ['hike', 'themepark']], [/\b(romantic|date)\b/, ['city', 'park']], [/\b(rain(y)?|indoors?|plan b|back-?up|bad weather|wet)\b/, ['museum', 'city']], [/\b(dogs?|pups?|puppy|puppies)\b/, ['hike', 'park', 'lake']], [/\b(somewhere|something|someplace) (new|different)|new place|never (been|done)|change of scenery\b/, ['roadtrip', 'city']]];
 const CHAT_FOOD = { pizza: /\bpizza/, mexican: /\b(mexican|tacos?|burritos?|tex-?mex)/, italian: /\b(italian|pasta)/, burger: /\bburgers?/, japanese: /\b(japanese|sushi|ramen)/, thai: /\bthai\b/, chinese: /\b(chinese|dim sum)/, indian: /\b(indian|curry)/, korean: /\bkorean/, vietnamese: /\b(vietnamese|pho|banh mi)/, seafood: /\b(seafood|fish|crab|oysters?|lobster)/, bbq: /\b(bbq|barbecue|barbeque|smokehouse)/, mediterranean: /\b(mediterranean|greek|falafel|gyros?)/, american: /\b(american|diner|wings)/, bakery: /\b(bakery|bakeries|pastr(y|ies)|donuts?)/, coffee_shop: /\b(coffee|cafe|café|latte)/, ice_cream: /\b(ice cream|gelato|frozen yogurt)/ };
 const CHAT_DIETS = { vegetarian: /\bvegetarian/, vegan: /\bvegan/, gluten_free: /\b(gluten[- ]free|celiac|coeliac)/, halal: /\bhalal/, kosher: /\bkosher/ };
 const WORD_NUM = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, couple: 2, 'a couple': 2, 'a couple of': 2, few: 3, 'a few': 3 };
@@ -76,7 +76,7 @@ function parseTrip(raw) {
   if (sm) out.start = clock(sm[1], sm[2], sm[3], 'start');
   if (em) out.end = clock(em[1], em[2], em[3], 'end');
   if (rm && !sm && !em) { out.start = clock(rm[1], rm[2], rm[3] || (+rm[1] < +rm[4] ? rm[6] : 'am'), 'start'); out.end = clock(rm[4], rm[5], rm[6], 'end'); }
-  if (!out.start && /\b(early|sunrise|first thing)\b/.test(t)) out.start = '07:00';
+  if (!out.start && /\b(early|sunrise|first thing|not (too |that |very )?hot|beat the (heat|crowds))\b/.test(t)) out.start = '07:00';
   if (!out.start && /\b(afternoon)\b/.test(t) && !/\bmorning\b/.test(t)) { out.start = '12:00'; out.end = out.end || '19:00'; }
   if (!out.end && /\b(all day|full day|whole day)\b/.test(t)) out.end = '20:00';
   if (!out.end && /\b(half day|quick|short)\b/.test(t)) out.end = clock(+(out.start || '08:00').slice(0, 2) + 5, 0, '', 'x');
@@ -129,6 +129,14 @@ function chatSummary(got) {
   return `<div class="chat-sum">${rows.map(([e, k, v]) => `<div><span>${e}</span><span class="small"><b>${k}:</b> ${v}</span></div>`).join('')}</div>`;
 }
 
+// One gentle question when the description is thin: the most useful missing piece first.
+function chatFollowUp(got) {
+  if (!got.types) return 'What kind of day sounds good: a hike, the beach, a museum…?';
+  if (!got.date) return 'Which day are you thinking?';
+  if (got.maxDrive == null) return 'How far are you happy to drive?';
+  return '';
+}
+
 async function chatSend(text) {
   text = text.trim();
   if (!text) return;
@@ -160,6 +168,8 @@ async function chatSend(text) {
     const cheer = ['Ooh, sounds like a great day!', 'Love it!', 'Got it!', 'Nice, I can work with that!'][c.msgs.length % 4];
     html = `${cheer} Here's the plan so far:${chatSummary(c.got)}`;
     if (got.familyMode && !state.family.kids.length) html += `<p class="small">Add your kids' ages in <a href="#/family">Family</a> and I'll pick spots that suit them.</p>`;
+    const ask = chatFollowUp(c.got);
+    if (ask && !c.asked) { html += `<p>${ask}</p>`; c.asked = true; }
     html += p.origin ? `<p>${originNote}Tell me anything else you want to change, or I'll build 3 plans now.</p>` : `<p>${originNote}Last thing: <b>where are you starting from?</b></p>`;
   }
   c.msgs.push({ from: 'pip', html });
