@@ -45,11 +45,11 @@ const foodItem = (id, name, amenity, pt, t) => ({
   ctags: Object.fromEntries(Object.entries(t).filter(([k]) => /^(seasonal|note|description|fixme|(disused|abandoned|was):.*)$/.test(k))),
 });
 
-// Restaurants and cafés within about 2.5 km of each point, from Nominatim's category search.
-async function nominatimFood(points, kinds = ['restaurant', 'cafe']) {
+// Restaurants and cafés within about 2.5 km (or `km`) of each point, from Nominatim's category search.
+async function nominatimFood(points, kinds = ['restaurant', 'cafe'], km = 2.5) {
   const seen = new Set(), out = [];
   for (const p of points.slice(0, 5)) {
-    const dLat = .0225, dLon = .0225 / Math.cos(p.lat * Math.PI / 180);
+    const dLat = km / 111, dLon = dLat / Math.cos(p.lat * Math.PI / 180);
     const box = [p.lon - dLon, p.lat + dLat, p.lon + dLon, p.lat - dLat].map(n => n.toFixed(5)).join(',');
     for (const q of kinds) {
       let rows = [];
@@ -116,9 +116,9 @@ const API = {
 
   // Nominatim first: it answers in about a second. The Overpass servers are often too busy,
   // so they're only a backup when Nominatim finds nothing (skipped when perServerMs is 0).
-  async food(points, perServerMs = 8000, kinds) {
+  async food(points, perServerMs = 8000, kinds, km) {
     let list = [];
-    try { list = await nominatimFood(points, kinds); } catch (e) {}
+    try { list = await nominatimFood(points, kinds, km); } catch (e) {}
     if (list.length || !perServerMs) return list;
     const parts = points.map(p => `nwr(around:2500,${p.lat.toFixed(5)},${p.lon.toFixed(5)})["amenity"~"^(restaurant|cafe|fast_food|ice_cream|pub)$"]["name"];`).join('');
     const els = await overpass(`[out:json][timeout:25];(${parts});out tags center 120;`, perServerMs);
@@ -276,7 +276,9 @@ async function research(adv, onStep = () => {}) {
   await step('food', async () => {
     const pts = foodPoints(adv);
     if (!pts.length) { R.food = []; return; }
-    const list = await API.food(pts);
+    // Nothing close by? Look again over a wider area before reporting no food.
+    let list = await API.food(pts);
+    if (!list.length) list = await API.food(pts, 0, undefined, 9).catch(() => []);
     list.forEach(f => {
       const near = pts.map((p, i) => ({ i, d: haversine(p, f) })).sort((a, b) => a.d - b.d)[0];
       f.near = pts[near.i].label; f.km = near.d;

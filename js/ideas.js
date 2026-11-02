@@ -164,7 +164,10 @@ function makePlan(inp, c, food, ex) {
     priceNote: IDEA_COST[c.type] ? `${IDEA_PRICE[c.type]}: about ${money(IDEA_COST[c.type])} per person × ${who}` : IDEA_PRICE[c.type],
   });
 
-  const near = food.filter(f => haversine(f, c) < 6 && !reportedClosed(f) && closedInfo({ ...f.ctags, opening_hours: f.hours }, inp.date)?.status !== 'closed')
+  // Prefer places within 6 km of the stop; in remote spots, accept up to 10 km before using a placeholder.
+  const open = food.filter(f => !reportedClosed(f) && closedInfo({ ...f.ctags, opening_hours: f.hours }, inp.date)?.status !== 'closed');
+  const within = km => open.filter(f => haversine(f, c) < km);
+  const near = (within(6).length ? within(6) : within(10))
     .map(f => ({ ...f, s: tasteScore(f) + (f.cuisine.length ? 0.3 : 0) + (f.hours ? 0.4 : 0) - (closedInfo(f.ctags, inp.date) ? 1 : 0) - haversine(f, c) / 8 })).sort((a, b) => b.s - a.s);
   const foods = [];
   for (const f of near) {
@@ -265,7 +268,8 @@ async function generateIdeas(shuffle) {
     const likes = state.profile.likes || [];
     const kinds = likes.some(c => /coffee|bakery|ice_cream/.test(c)) ? ['restaurant', 'cafe'] : ['restaurant'];
     const prefetch = c => {
-      c.foodP = c.foodP || API.food([c], 0, kinds).catch(() => []);
+      // Nothing within 2.5 km? Try again over a wider area (about 9 km) before giving up on lunch.
+      c.foodP = c.foodP || API.food([c], 0, kinds).then(l => l.length ? l : API.food([c], 0, kinds, 9)).catch(() => []);
       c.extrasP = c.extrasP || pickExtras(c);
     };
     picks.forEach(prefetch);
