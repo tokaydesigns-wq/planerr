@@ -480,3 +480,9 @@ a.pill { text-decoration: none; }
 .trail .pill.line { background: var(--surface); }
 
 .closed-btn { color: var(--muted); }
+
+/* Trip recap */
+.recap-head { display: grid; gap: 6px; }
+.recap-cover { width: 100%; max-height: 220px; object-fit: cover; border-radius: 16px; }
+.recap-stop { display: grid; gap: 8px; }
+.screen > a.btn.sm:first-child { justify-self: start; }
