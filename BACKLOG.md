@@ -24,7 +24,6 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## Needs the owner
 
-- [ ] `[needs-owner]` Community feed: create a free Supabase project, run `supabase.sql`, paste the URL and anon key into `config.js`. Until then Explore only shows built-in examples.
 - [ ] `[needs-owner]` Google "temporarily closed" status and in-app Google reviews need a Google Cloud account with billing (Places API). Declined for now.
 - [ ] `[needs-owner]` Pip as a real AI chat needs a paid AI account and a small server to hold the key. Declined for now; Pip stays keyword-based.
 
@@ -36,6 +35,7 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## Done
 
+- [x] Community feed switched on (Supabase): shared adventures show on Explore
 - [x] Wider lunch search: about 9 km out before falling back to "Lunch near…"
 - [x] Pip understands more phrasings and asks one follow-up question (dog, not too hot, somewhere new, backup plans)
 - [x] Count the whole trail: trails that run past the ~4 mile search area get one wider lookup
