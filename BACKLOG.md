@@ -14,13 +14,12 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 ## Up next
 
 - [ ] `[feature]` Photos: a "Trip recap" view that shows each stop with its photos, rating and notes as one scrolling story.
-- [ ] `[feature]` Export or back up photos and adventures to a file, since everything lives on one phone.
 - [ ] `[polish]` Closures: check the road in for every stop with a place, not only the main destination.
 - [ ] `[feature]` Pip: make "somewhere new" skip places from your past adventures.
 
 ## In review
 
-- (pull requests waiting for the owner)
+- `[feature]` Include trip photos in the backup file ("Back up your trip photos with the backup file"). Still to do: very large photo collections may make a big file; a photos-only option could help.
 
 ## Needs the owner
 
@@ -31,7 +30,7 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 - Free map data misses some closures. For example, Brainard Lake Road (to Mount Audubon) isn't tagged as seasonal, so the elevation check is what catches it.
 - Trail lengths count pieces within about 4 miles of the stop; a trail that runs off that area gets one wider lookup (up to about 12 miles), for the first 3 such trails only.
-- Photos are stored on the phone only and aren't backed up.
+- Photos live on the phone; they're only backed up when you use Export backup on the You page.
 
 ## Done
 
