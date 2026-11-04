@@ -16,6 +16,11 @@ const WD_TYPES = {
   roadtrip:  ['Q6017969', 'Q893775', 'Q150784'],                   // scenic viewpoint, national monument, canyon
   snow:      ['Q130003'],                                          // ski resort
 };
+// Some places are filed under a narrower type, like "Wisconsin state park". These parent types also
+// match anything one level below them. (A general sub-type search is too slow for Wikidata.)
+const WD_PARENTS = {
+  park: ['Q16023747'],                                             // state park of the United States
+};
 // Nearby Wikipedia articles that make good extra stops, and ones that don't (events, schools, suburbs…).
 const SIGHT_OK = /park|trail|museum|lake|falls|waterfall|peak|mountain|historic|monument|garden|reservoir|canyon|beach|bridge|observatory|zoo|gallery|lighthouse|church|cathedral|mission|fort\b|castle|pier|wildlife|refuge|preserve|reserve|arboretum|winery|brewery|market|theat|landmark|tower|cave|springs|overlook|viewpoint|plaza|square|memorial|ranch|farm|mill|railroad|railway|depot|sculpture|aquarium|amphitheat|dam\b|rock|butte|mesa|arch/i;
 const SIGHT_BAD = /massacre|shooting|murder|disaster|crash|killed|bombing|riot|attack|school|college|university|census-designated|unincorporated|neighborhood|neighbourhood|subdivision|cemetery|airport|interchange|station\b|highway|interstate|\broute\b|hospital|prison|correctional|company|corporation|church of jesus|election|district\b|county\b/i;
@@ -62,10 +67,12 @@ const STEP_LABELS = {
 const reachKm = inp => Math.min(260, inp.maxDrive * 1.05);
 
 async function wdPlaces(origin, km, type) {
-  const q = `SELECT ?item ?itemLabel ?coord ?image ?links ?article WHERE {
+  const parents = WD_PARENTS[type]
+    ? `UNION { VALUES ?p { ${WD_PARENTS[type].map(x => 'wd:' + x).join(' ')} } ?item wdt:P31 ?t . ?t wdt:P279 ?p . }` : '';
+  const q = `SELECT DISTINCT ?item ?itemLabel ?coord ?image ?links ?article WHERE {
     SERVICE wikibase:around { ?item wdt:P625 ?coord. bd:serviceParam wikibase:center "Point(${origin.lon.toFixed(4)} ${origin.lat.toFixed(4)})"^^geo:wktLiteral. bd:serviceParam wikibase:radius "${Math.round(km)}". }
-    VALUES ?t { ${WD_TYPES[type].map(x => 'wd:' + x).join(' ')} }
-    ?item wdt:P31 ?t ; wikibase:sitelinks ?links .
+    { VALUES ?t { ${WD_TYPES[type].map(x => 'wd:' + x).join(' ')} } ?item wdt:P31 ?t . } ${parents}
+    ?item wikibase:sitelinks ?links .
     OPTIONAL { ?item wdt:P18 ?image }
     OPTIONAL { ?article schema:about ?item ; schema:isPartOf <https://en.wikipedia.org/> . }
     SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
