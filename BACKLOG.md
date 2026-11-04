@@ -13,13 +13,13 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## Up next
 
-- [ ] `[feature]` Photos: a "Trip recap" view that shows each stop with its photos, rating and notes as one scrolling story.
 - [ ] `[polish]` Closures: check the road in for every stop with a place, not only the main destination.
 - [ ] `[feature]` Pip: make "somewhere new" skip places from your past adventures.
+- [ ] `[feature]` Trip recap: a share or print version, and a link to it from the Home cards.
 
 ## In review
 
-- `[feature]` Include trip photos in the backup file ("Back up your trip photos with the backup file"). Still to do: very large photo collections may make a big file; a photos-only option could help.
+- (pull requests waiting for the owner)
 
 ## Needs the owner
 
@@ -34,6 +34,8 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## Done
 
+- [x] Backup file includes trip photos
+- [x] Trip recap: one scrolling story per finished adventure
 - [x] Community feed switched on (Supabase): shared adventures show on Explore
 - [x] Wider lunch search: about 9 km out before falling back to "Lunch near…"
 - [x] Pip understands more phrasings and asks one follow-up question (dog, not too hot, somewhere new, backup plans)

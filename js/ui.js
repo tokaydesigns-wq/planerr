@@ -40,7 +40,7 @@ const whenLabel = adv => {
 // ---------- render ----------
 function render() {
   const { view, id } = parseRoute();
-  const screens = { home, ideas: ideasScreen, idea: () => ideaDetail(id), chat: chatScreen, new: () => formScreen(null), edit: () => formScreen(id), a: () => detail(id), brief: () => briefing(id), live: () => live(id), rate: () => rateScreen(id), explore: () => explore(id), family, you };
+  const screens = { home, ideas: ideasScreen, idea: () => ideaDetail(id), chat: chatScreen, new: () => formScreen(null), edit: () => formScreen(id), a: () => detail(id), brief: () => briefing(id), live: () => live(id), rate: () => rateScreen(id), recap: () => recapScreen(id), explore: () => explore(id), family, you };
   const fn = screens[view] || home;
   $('#app').innerHTML = fn();
   // Fade in only when arriving on a screen, not on every in-place update.
@@ -58,7 +58,7 @@ function afterRender(view, id) {
   if (view === 'explore' && !ui.community && !ui.loadingCommunity) loadCommunity();
   if (view === 'idea') setupIdeaDetail(id);
   if (view === 'chat') setupChat();
-  if ((view === 'a' || view === 'rate' || view === 'live') && adv) loadTripPhotos(adv.id);
+  if ((view === 'a' || view === 'rate' || view === 'live' || view === 'recap') && adv) loadTripPhotos(adv.id);
 }
 
 async function runResearch(adv) {
@@ -465,7 +465,7 @@ function detail(id) {
     </div>
     <p class="note" style="margin-top:-10px">Spend estimate: stops ${money(b.stopsCost)}${b.fuel ? ` + fuel ${money(b.fuel)}` : ''}${b.food ? ` + ${b.meals.join(' & ')} for ${b.people} (${money(b.food)})` : ''}.</p>
 
-    ${adv.status === 'done' ? `<section class="card"><h2>How it went</h2>${adv.rating ? stars(adv.rating) : ''}${adv.review ? `<p>${esc(adv.review)}</p>` : ''}${adv.tips ? `<p class="small muted">Tip: ${esc(adv.tips)}</p>` : ''}${!adv.rating ? `<a class="btn primary" href="#/rate/${adv.id}">Rate this adventure</a>` : ''}</section>` : ''}
+    ${adv.status === 'done' ? `<section class="card"><h2>How it went</h2>${adv.rating ? stars(adv.rating) : ''}${adv.review ? `<p>${esc(adv.review)}</p>` : ''}${adv.tips ? `<p class="small muted">Tip: ${esc(adv.tips)}</p>` : ''}${!adv.rating ? `<a class="btn primary" href="#/rate/${adv.id}">Rate this adventure</a>` : `<a class="btn" href="#/recap/${adv.id}">See the trip recap</a>`}</section>` : ''}
 
     ${alerts.length ? `<div class="alerts">${alerts.map(a => `<div class="alert ${a.lv}"><span class="ic">${a.ic}</span><span>${a.t}</span></div>`).join('')}</div>` : (ui.busy[adv.id] ? '' : adv.research?.at ? `<div class="alert good"><span class="ic">✓</span><span>No problems found with this plan.</span></div>` : '')}
 

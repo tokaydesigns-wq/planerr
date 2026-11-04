@@ -117,6 +117,7 @@ async function exportPhotos() {
 // Returns how many photos were added. Skips photos already here or whose trip isn't here.
 async function importPhotos(list) {
   let added = 0;
+  const touched = new Set();
   for (const p of Array.isArray(list) ? list : []) {
     const adv = advById(p?.adv);
     if (!adv || typeof p.full !== 'string' || !p.full.startsWith('data:image/')) continue;
@@ -124,12 +125,18 @@ async function importPhotos(list) {
       if (await PhotoDB.get(p.id)) continue;
       const full = await (await fetch(p.full)).blob(), img = await readImage(full);
       await PhotoDB.put({ id: p.id, adv: p.adv, stop: p.stop, at: p.at, full, thumb: await shrink(img, 720, .8) });
-      adv.photoCount = (adv.photoCount || 0) + 1;
+      touched.add(adv);
       if (!adv.cover) adv.cover = p.id;
       added++;
     } catch (e) { if (e?.name === 'QuotaExceededError') break; }
   }
-  if (added) { save(); ui.photos = {}; await Promise.all(state.adventures.filter(a => a.cover).map(loadCover)); }
+  // Recount from what's stored: a trip from the backup file already carries its old photo count.
+  if (added) {
+    const all = await PhotoDB.all().catch(() => []);
+    touched.forEach(a => { a.photoCount = all.filter(r => r.adv === a.id).length; });
+    save(); ui.photos = {};
+    await Promise.all(state.adventures.filter(a => a.cover).map(loadCover));
+  }
   return added;
 }
 
@@ -153,6 +160,37 @@ function photosCard(adv, intro) {
       </div>`).join('')}
     <p class="note">Photos stay on this phone. They aren't uploaded anywhere, so they won't be on your other devices.</p>
   </section>`;
+}
+
+// ---------- trip recap: one scrolling story of the day ----------
+function recapScreen(id) {
+  const adv = advById(id);
+  if (!adv) return `<div class="screen"><div class="empty">That adventure doesn't exist anymore.<a class="btn" href="#/">Go home</a></div></div>`;
+  const list = tripPhotos(adv);
+  const by = sid => (list || []).filter(p => photoStopOf(adv, p) === sid);
+  const cover = ui.covers?.[adv.id];
+  const stop = s => {
+    const pics = by(s.id);
+    return `<section class="card recap-stop">
+      <h2>${s.main ? '⭐' : CATS[s.cat]?.e || '📍'} ${esc(s.name || 'Stop')}</h2>
+      ${s.liked === true ? '<span class="pill">👍 Liked</span>' : s.liked === false ? '<span class="pill">👎 Not for us</span>' : ''}
+      ${pics.length ? `<div class="album-grid">${pics.map(p => `<button class="ph" data-act="ph-open" data-pid="${p.id}" aria-label="Open photo from ${esc(s.name)}"><img src="${p.thumbURL}" alt="" loading="lazy"></button>`).join('')}</div>` : (list ? '<p class="small muted">No photos from this stop.</p>' : '')}
+      ${s.tip ? `<p class="small">💡 ${esc(s.tip)}</p>` : ''}
+    </section>`;
+  };
+  const other = by('other');
+  return `<div class="screen">
+    <a class="btn sm" href="#/a/${adv.id}">‹ Back to plan</a>
+    <div class="recap-head">${cover ? `<img class="recap-cover" src="${cover}" alt="">` : ''}
+      <h1>${esc(adv.title)}</h1>
+      <p class="muted">${fmtDate(adv.date)}${adv.rating ? ' · ' : ''}${adv.rating ? stars(adv.rating) : ''}</p>
+      ${adv.review ? `<p>${esc(adv.review)}</p>` : ''}
+    </div>
+    ${list ? '' : '<span class="loading"><span class="spin"></span>Loading photos…</span>'}
+    ${adv.stops.map(stop).join('')}
+    ${other.length ? `<section class="card recap-stop"><h2>✨ Other moments</h2><div class="album-grid">${other.map(p => `<button class="ph" data-act="ph-open" data-pid="${p.id}" aria-label="Open photo"><img src="${p.thumbURL}" alt="" loading="lazy"></button>`).join('')}</div></section>` : ''}
+    ${adv.tips ? `<section class="card"><h2>Tip for next time</h2><p>${esc(adv.tips)}</p></section>` : ''}
+  </div>`;
 }
 
 // ---------- full-screen viewer ----------
