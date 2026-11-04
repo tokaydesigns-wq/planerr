@@ -13,14 +13,13 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## Up next
 
-- [ ] `[feature]` Photos: a "Trip recap" view that shows each stop with its photos, rating and notes as one scrolling story.
 - [ ] `[feature]` Export or back up photos and adventures to a file, since everything lives on one phone.
 - [ ] `[polish]` Closures: check the road in for every stop with a place, not only the main destination.
 - [ ] `[feature]` Pip: make "somewhere new" skip places from your past adventures.
 
 ## In review
 
-- (pull requests waiting for the owner)
+- `[feature]` Trip recap: one scrolling story per finished adventure (PR: "Add a Trip recap page"). Follow-up: a share/print version, and a link from Home cards.
 
 ## Needs the owner
 
