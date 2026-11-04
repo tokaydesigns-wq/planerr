@@ -8,18 +8,20 @@ const WD_TYPES = {
   hike:      ['Q8502', 'Q34038', 'Q2143825', 'Q150784'],          // mountain, waterfall, hiking trail, canyon
   beach:     ['Q40080'],                                           // beach
   lake:      ['Q23397', 'Q131681'],                                // lake, reservoir
-  park:      ['Q46169', 'Q1761072', 'Q179049', 'Q893775', 'Q167346'], // national/state park, nature reserve, national monument, botanical garden
+  park:      ['Q46169', 'Q1761072', 'Q179049', 'Q893775', 'Q167346', // national/state park, nature reserve, national monument, botanical garden
+              'Q34918903', 'Q1377575', 'Q272231'],                  // US national park, wildlife refuge, arboretum
   city:      ['Q1093829', 'Q15127012', 'Q3957', 'Q515'],           // US city/town, town, city
   themepark: ['Q194195', 'Q2416723', 'Q740326'],                   // amusement park, theme park, water park
   museum:    ['Q33506', 'Q207694', 'Q588140', 'Q43501', 'Q2281788', 'Q756102'], // museums, zoo, aquarium, open-air museum
   food:      ['Q15127012', 'Q3957', 'Q1093829'],                   // towns to eat your way through
-  roadtrip:  ['Q6017969', 'Q893775', 'Q150784'],                   // scenic viewpoint, national monument, canyon
+  roadtrip:  ['Q6017969', 'Q893775', 'Q150784', 'Q39715'],         // scenic viewpoint, national monument, canyon, lighthouse
   snow:      ['Q130003'],                                          // ski resort
 };
 // Some places are filed under a narrower type, like "Wisconsin state park". These parent types also
 // match anything one level below them. (A general sub-type search is too slow for Wikidata.)
 const WD_PARENTS = {
-  park: ['Q16023747'],                                             // state park of the United States
+  park: ['Q16023747', 'Q1377575'],                                 // state park of the United States, wildlife refuge
+  museum: ['Q33506'],                                              // museum (history, natural history, historic house…)
 };
 // Nearby Wikipedia articles that make good extra stops, and ones that don't (events, schools, suburbs…).
 const SIGHT_OK = /park|trail|museum|lake|falls|waterfall|peak|mountain|historic|monument|garden|reservoir|canyon|beach|bridge|observatory|zoo|gallery|lighthouse|church|cathedral|mission|fort\b|castle|pier|wildlife|refuge|preserve|reserve|arboretum|winery|brewery|market|theat|landmark|tower|cave|springs|overlook|viewpoint|plaza|square|memorial|ranch|farm|mill|railroad|railway|depot|sculpture|aquarium|amphitheat|dam\b|rock|butte|mesa|arch/i;
