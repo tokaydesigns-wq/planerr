@@ -13,13 +13,13 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## Up next
 
-- [ ] `[feature]` Export or back up photos and adventures to a file, since everything lives on one phone.
 - [ ] `[polish]` Closures: check the road in for every stop with a place, not only the main destination.
 - [ ] `[feature]` Pip: make "somewhere new" skip places from your past adventures.
+- [ ] `[feature]` Trip recap: a share or print version, and a link to it from the Home cards.
 
 ## In review
 
-- `[feature]` Trip recap: one scrolling story per finished adventure (PR: "Add a Trip recap page"). Follow-up: a share/print version, and a link from Home cards.
+- (pull requests waiting for the owner)
 
 ## Needs the owner
 
@@ -30,10 +30,12 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 - Free map data misses some closures. For example, Brainard Lake Road (to Mount Audubon) isn't tagged as seasonal, so the elevation check is what catches it.
 - Trail lengths count pieces within about 4 miles of the stop; a trail that runs off that area gets one wider lookup (up to about 12 miles), for the first 3 such trails only.
-- Photos are stored on the phone only and aren't backed up.
+- Photos live on the phone; they're only backed up when you use Export backup on the You page.
 
 ## Done
 
+- [x] Backup file includes trip photos
+- [x] Trip recap: one scrolling story per finished adventure
 - [x] Community feed switched on (Supabase): shared adventures show on Explore
 - [x] Wider lunch search: about 9 km out before falling back to "Lunch near…"
 - [x] Pip understands more phrasings and asks one follow-up question (dog, not too hot, somewhere new, backup plans)

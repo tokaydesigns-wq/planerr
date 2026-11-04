@@ -24,6 +24,7 @@ const PhotoDB = {
   put: rec => PhotoDB.run('readwrite', st => st.put(rec)),
   del: id => PhotoDB.run('readwrite', st => st.delete(id)),
   get: id => PhotoDB.run('readonly', st => st.get(id)),
+  all: () => PhotoDB.run('readonly', st => st.getAll()),
   forAdv: adv => PhotoDB.run('readonly', st => st.index('adv').getAll(adv)),
 };
 
@@ -101,6 +102,42 @@ async function addTripPhotos(advId, stopId, files) {
   await loadTripPhotos(advId, true);
   const where = photoStops(adv).find(s => s.id === stopId)?.name || 'your trip';
   toast(full ? 'Your phone is out of space for more photos.' : added ? `Saved ${added} photo${added === 1 ? '' : 's'} to ${where}` : 'Those files couldn’t be opened as photos.');
+}
+
+// Backup helpers: photos travel inside the backup file as text (data URLs). Only the 1600px copy
+// is saved; the small thumbnail is rebuilt when the backup is imported.
+const blobToURL = b => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => no(r.error); r.readAsDataURL(b); });
+async function exportPhotos() {
+  let recs = [];
+  try { recs = await PhotoDB.all(); } catch (e) {}
+  const out = [];
+  for (const r of recs) { try { out.push({ id: r.id, adv: r.adv, stop: r.stop, at: r.at, full: await blobToURL(r.full) }); } catch (e) {} }
+  return out;
+}
+// Returns how many photos were added. Skips photos already here or whose trip isn't here.
+async function importPhotos(list) {
+  let added = 0;
+  const touched = new Set();
+  for (const p of Array.isArray(list) ? list : []) {
+    const adv = advById(p?.adv);
+    if (!adv || typeof p.full !== 'string' || !p.full.startsWith('data:image/')) continue;
+    try {
+      if (await PhotoDB.get(p.id)) continue;
+      const full = await (await fetch(p.full)).blob(), img = await readImage(full);
+      await PhotoDB.put({ id: p.id, adv: p.adv, stop: p.stop, at: p.at, full, thumb: await shrink(img, 720, .8) });
+      touched.add(adv);
+      if (!adv.cover) adv.cover = p.id;
+      added++;
+    } catch (e) { if (e?.name === 'QuotaExceededError') break; }
+  }
+  // Recount from what's stored: a trip from the backup file already carries its old photo count.
+  if (added) {
+    const all = await PhotoDB.all().catch(() => []);
+    touched.forEach(a => { a.photoCount = all.filter(r => r.adv === a.id).length; });
+    save(); ui.photos = {};
+    await Promise.all(state.adventures.filter(a => a.cover).map(loadCover));
+  }
+  return added;
 }
 
 async function deleteTripPhotos(advId) {

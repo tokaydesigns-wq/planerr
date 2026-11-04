@@ -689,7 +689,7 @@ function you() {
     </section>
     <section class="card">
       <h2>Your data</h2>
-      <p class="small muted">Everything is saved on this device. Back it up or move it to another phone with a file.</p>
+      <p class="small muted">Everything is saved on this device. Back it up or move it to another phone with a file. It includes your trip photos.</p>
       <div class="row wrap"><button class="btn sm" data-act="export">Export backup</button><label class="btn sm">Import backup<input type="file" id="import" accept="application/json" hidden></label>${state.adventures.some(a => a.example) ? '<button class="btn sm" data-act="clear-examples">Remove examples</button>' : ''}</div>
     </section>
     <p class="note">Data: Open-Meteo, OpenStreetMap contributors, OSRM, Photon by Komoot, Wikipedia.</p>
@@ -800,7 +800,8 @@ document.addEventListener('click', async e => {
     case 'taste-reset': if (confirm('Reset your taste profile?')) { state.profile.taste = {}; state.profile.votes = {}; save(); keepScroll(); } return;
     case 'clear-examples': state.adventures = state.adventures.filter(a => !a.example); save(); keepScroll(); toast('Examples removed'); return;
     case 'export': {
-      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+      toast('Packing up your backup…');
+      const blob = new Blob([JSON.stringify({ ...state, photos: await exportPhotos() }, null, 2)], { type: 'application/json' });
       const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `planerr-backup-${todayStr()}.json` });
       document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
       return;
@@ -879,7 +880,9 @@ document.addEventListener('change', async e => {
       const ids = new Set(state.adventures.map(a => a.id));
       data.adventures.forEach(a => { if (!ids.has(a.id)) state.adventures.push(a); });
       if (data.family?.kids?.length && !state.family.kids.length) state.family = data.family;
-      save(); render(); toast(`Imported ${data.adventures.length} adventures`);
+      save();
+      const n = await importPhotos(data.photos);
+      render(); toast(`Imported ${data.adventures.length} adventures${n ? ` and ${n} photo${n === 1 ? '' : 's'}` : ''}`);
     } catch (err) { toast('That file isn’t a Planerr backup.'); }
     el.value = '';
   }
