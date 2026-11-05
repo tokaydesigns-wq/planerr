@@ -28,12 +28,14 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## Known limits (not bugs)
 
+- Reports count phones, not people: someone who clears their browser data can report the same post again.
 - Free map data misses some closures. For example, Brainard Lake Road (to Mount Audubon) isn't tagged as seasonal, so the elevation check is what catches it.
 - Trail lengths count pieces within about 4 miles of the stop; a trail that runs off that area gets one wider lookup (up to about 12 miles), for the first 3 such trails only.
 - Photos live on the phone; they're only backed up when you use Export backup on the You page.
 
 ## Done
 
+- [x] Report button on Explore posts (hidden for everyone after 3 reports)
 - [x] Backup file includes trip photos
 - [x] Trip recap: one scrolling story per finished adventure
 - [x] Community feed switched on (Supabase): shared adventures show on Explore

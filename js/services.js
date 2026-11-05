@@ -309,6 +309,14 @@ const Community = {
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     return (await r.json())[0];
   },
+  // One report per phone per post (a repeat comes back as 409, which is fine).
+  // The database hides a post once 3 different phones have reported it.
+  async report(id) {
+    const base = window.PLANERR_CONFIG.supabaseUrl.replace(/\/$/, '');
+    state.reporterId = state.reporterId || uid(); save();
+    const r = await fetch(`${base}/rest/v1/adventure_reports`, { method: 'POST', headers: { ...this.headers(), Prefer: 'return=minimal' }, body: JSON.stringify({ adventure_id: id, reporter: state.reporterId }) });
+    if (!r.ok && r.status !== 409) throw new Error(`HTTP ${r.status}`);
+  },
 };
 
 // Built-in examples so Explore isn't empty before anyone shares. Marked as examples in the UI.

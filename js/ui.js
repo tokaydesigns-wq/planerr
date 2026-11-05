@@ -587,7 +587,8 @@ function rateScreen(id) {
 
 // ---------- Explore ----------
 function explore(id) {
-  const all = [...(ui.community || []), ...EXAMPLE_COMMUNITY];
+  // Posts you've reported disappear for you straight away.
+  const all = [...(ui.community || []), ...EXAMPLE_COMMUNITY].filter(a => !state.reportedPosts?.[a.id]);
   if (id) {
     const a = all.find(x => String(x.id) === id);
     if (!a) return `<div class="screen"><div class="empty">${ui.loadingCommunity ? 'Loading…' : 'Adventure not found.'}<a class="btn" href="#/explore">Back to Explore</a></div></div>`;
@@ -606,6 +607,7 @@ function explore(id) {
         <div class="list">${stops.map(s => `<div class="li" style="grid-template-columns:44px 1fr"><div class="ic">${CATS[s.kind]?.e || '📍'}</div><div class="main"><b>${esc(s.name)}</b>${s.tip ? `<span class="small muted">${esc(s.tip)}</span>` : ''}${s.liked === false ? '<span class="pill warn">Would skip</span>' : ''}</div></div>`).join('')}</div>
       </section>
       <button class="btn primary block" data-act="copy-community" data-cid="${esc(String(a.id))}" style="min-height:54px">Plan this adventure</button>
+      ${a.example ? '' : `<button class="btn sm report-btn" data-act="report-post" data-cid="${esc(String(a.id))}">🚩 Report this post</button>`}
     </div>`;
   }
   const q = ui.exploreQ.toLowerCase();
@@ -789,6 +791,15 @@ document.addEventListener('click', async e => {
       c.stops = (a.stops || []).map((s, i) => newStop({ name: s.name, cat: CATS[s.kind] ? s.kind : 'sight', tip: s.tip || '', place: s.lat != null ? { label: s.name, sub: a.region, lat: s.lat, lon: s.lon, osm: s.osm || null } : null, main: i === (a.main_index ?? 0) }));
       c._for = 'new'; ui.draft = c; ui.keepDraft = true; go('new');
       toast('Copied. Set where you’re starting from and find each stop on the map.');
+      return;
+    }
+    case 'report-post': {
+      if (!confirm('Report this post as spam or not OK? It’s hidden for you now, and taken down for everyone after a few reports.')) return;
+      const cid = el.dataset.cid;
+      try { await Community.report(cid); } catch (err) { toast('Couldn’t send the report. Try again when you have signal.'); return; }
+      state.reportedPosts = state.reportedPosts || {};
+      state.reportedPosts[cid] = Date.now(); save();
+      go('explore'); toast('Thanks. That post is hidden for you.');
       return;
     }
     // family
