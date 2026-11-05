@@ -107,6 +107,31 @@ async function findCandidates(inp) {
   return out.filter(c => !seen.has(c.id) && seen.add(c.id));
 }
 
+// How many people read each place's English Wikipedia page in the last 30 days. It tells famous spots
+// from tiny ones far better than Wikidata's language count, which is 1–5 for most local places.
+// No English article counts as 0 reads. If Wikipedia can't be reached, ranking falls back to the language count.
+async function addViews(cands) {
+  const need = cands.filter(c => c.views === undefined);
+  const titles = [...new Set(need.filter(c => c.wiki?.startsWith('en:')).map(c => c.wiki.slice(3)))], views = {};
+  try {
+    await Promise.all(Array.from({ length: Math.ceil(titles.length / 50) }, (_, k) => titles.slice(k * 50, k * 50 + 50)).map(async part => {
+      // Wikipedia sends the counts a few pages at a time, so keep asking until it's done.
+      let cont = '';
+      for (let i = 0; i < 10; i++) {
+        const d = await getJSON('https://en.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&origin=*&prop=pageviews&pvipdays=30&titles='
+          + encodeURIComponent(part.join('|')) + cont);
+        const asked = Object.fromEntries((d.query?.normalized || []).map(n => [n.to, n.from]));
+        (d.query?.pages || []).forEach(pg => { if (pg.pageviews) views[asked[pg.title] || pg.title] = Object.values(pg.pageviews).reduce((a, v) => a + (v || 0), 0); });
+        if (!d.continue) break;
+        cont = '&' + new URLSearchParams(d.continue);
+      }
+    }));
+  } catch (e) { return; }
+  need.forEach(c => { c.views = views[c.wiki?.slice(3)] || 0; });
+}
+// How well known a place is: Wikipedia reads when we have them, otherwise the language count.
+const fame = c => c.views !== undefined ? Math.log10(c.views + 1) * 0.25 : Math.log10(c.links + 1) * 0.3;
+
 // Shortlist ~12 places spread across the chosen kinds of day, favoring well-known ones a comfortable distance out.
 // Elevation for every candidate (100 per Open-Meteo call), so snowed-in peaks drop out before shortlisting.
 async function addElevations(cands) {
@@ -127,7 +152,7 @@ function shortlist(cands, inp, exclude) {
   const types = Object.keys(byType);
   const per = Math.max(3, Math.ceil(12 / Math.max(1, types.length)));
   return types.flatMap(t => byType[t]
-    .map(c => ({ ...c, pre: 1 - Math.abs(c.crow / R - 0.5) + Math.log10(c.links + 1) * 0.35 + Math.random() * 0.35 }))
+    .map(c => ({ ...c, pre: 1 - Math.abs(c.crow / R - 0.5) + fame(c) * 1.15 + Math.random() * 0.35 }))
     .sort((a, b) => b.pre - a.pre).slice(0, per));
 }
 
@@ -137,7 +162,7 @@ function scoreCandidate(c, inp) {
   if (c.type !== 'snow' && seasonRisk(c.elev, inp.date)?.lv === 'high') return -Infinity;
   const window = toMin(inp.end) - toMin(inp.start);
   if (c.drive.min * 2 + 60 > window) return -Infinity;
-  let s = 1 - Math.abs(c.drive.min / inp.maxDrive - 0.65) * 1.1 + Math.log10(c.links + 1) * 0.3 + Math.random() * 0.2;
+  let s = 1 - Math.abs(c.drive.min / inp.maxDrive - 0.65) * 1.1 + fame(c) + Math.random() * 0.2;
   if (c.wx) {
     if (OUTDOOR_TYPES.has(c.type)) s -= c.wx.rain >= 60 ? 0.8 : c.wx.rain >= 40 ? 0.3 : 0;
     if (c.type === 'beach' && c.wx.hi < (imperial() ? 68 : 20)) s -= 0.4;
@@ -254,6 +279,7 @@ async function generateIdeas(shuffle) {
   try {
     if (!run.cands) run.cands = await findCandidates(inp);
     await addElevations(run.cands);
+    await addViews(run.cands);
     let pool = shortlist(run.cands, inp, run.seen);
     if (pool.length < 3 && run.seen.size) { run.seen = new Set(); pool = shortlist(run.cands, inp, run.seen); }
     if (!pool.length) throw { friendly: `Couldn’t find matching places within ${fmtDur(inp.maxDrive)}. Try a longer drive or add more kinds of day.` };
