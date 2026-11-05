@@ -255,6 +255,17 @@ async function research(adv, onStep = () => {}) {
     R.access = await API.access(before, main.place, adv.date);
   });
 
+  // The other stops get the same check (at most 3, and not food or places right beside the main stop).
+  await step('access', async () => {
+    R.accessStops = {};
+    const others = located(adv).filter(s => s !== main && s.cat !== 'food' && !(main?.place && haversine(s.place, main.place) < 2)).slice(0, 3);
+    for (const s of others) {
+      const prev = located(adv).filter(o => adv.stops.indexOf(o) < adv.stops.indexOf(s)).at(-1)?.place || adv.origin;
+      const acc = await API.access(prev, s.place, adv.date).catch(() => null);
+      if (acc) R.accessStops[s.id] = acc;
+    }
+  });
+
   // Stops added from ideas, Wikipedia or the community have coordinates but no OpenStreetMap id yet.
   // Match each to the nearest same-named map entry so its hours and website can be checked.
   await Promise.all(adv.stops.filter(s => s.place && !s.place.osm && s.name).map(async s => {

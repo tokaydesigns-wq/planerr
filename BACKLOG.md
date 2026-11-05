@@ -13,13 +13,13 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## Up next
 
-- [ ] `[polish]` Closures: check the road in for every stop with a place, not only the main destination.
 - [ ] `[feature]` Pip: make "somewhere new" skip places from your past adventures.
 - [ ] `[feature]` Trip recap: a share or print version, and a link to it from the Home cards.
 
 ## In review
 
-- (pull requests waiting for the owner)
+- `[polish]` Check the road in for every stop, not just the main one (PR: "Check the road in for every stop")
+- (Open earlier: Favor well-known places in trip ideas, #13)
 
 ## Needs the owner
 
