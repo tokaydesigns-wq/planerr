@@ -46,6 +46,7 @@ function parseTrip(raw) {
   const types = Object.keys(CHAT_TYPES).filter(k => CHAT_TYPES[k].test(t));
   if (!types.length) CHAT_MOODS.forEach(([re, ks]) => { if (re.test(t)) ks.forEach(k => types.includes(k) || types.push(k)); });
   if (types.length) out.types = types;
+  if (/\b(somewhere|something|someplace) (new|different)|new place|never (been|done)|haven'?t (been|done)|change of scenery/.test(t)) out.fresh = true;
 
   // Drive time only counts next to a driving word, so "hike for 3 hours" isn't read as the drive.
   const dur = String.raw`(\d+(?:\.\d+)?|an?|half an|one|two|three|four|five|a couple(?: of)?|a few)\s*(hours?|hrs?|h|minutes?|mins?)\b( and a half)?`;
@@ -122,6 +123,7 @@ function chatSummary(got) {
     ['📅', 'When', `${fmtDate(p.date, { weekday: 'long', month: 'short', day: 'numeric' })}, ${fmtTime(toMin(p.start))} to ${fmtTime(toMin(p.end))}${got.date || got.start || got.end ? '' : mark('x')}`],
     ['👥', 'Who', `${p.people} adult${p.people === 1 ? '' : 's'}${p.familyMode ? ` + ${kidsN ? `${kidsN} kid${kidsN === 1 ? '' : 's'}` : 'kids'}` : ''}${mark('people')}`],
     ['💵', 'Budget', `${money(p.budget)}${mark('budget')}`],
+    p.fresh && ['✨', 'Somewhere new', 'skipping places you’ve been'],
     likes.length && ['🍽️', 'Food', likes.map(c => cuisineInfo(c)[1] + ' ' + cuisineInfo(c)[0]).join(', ')],
     state.profile.diet.length && ['🥗', 'Diet', state.profile.diet.map(d => DIETS[d]).join(', ')],
     p.origin && ['📍', 'Starting from', esc(p.origin.label)],
@@ -146,7 +148,7 @@ async function chatSend(text) {
 
   const got = parseTrip(text);
   Object.assign(c.got = c.got || {}, got);
-  ['types', 'maxDrive', 'date', 'start', 'end', 'people', 'budget', 'familyMode'].forEach(k => { if (got[k] != null) p[k] = got[k]; });
+  ['types', 'maxDrive', 'date', 'start', 'end', 'people', 'budget', 'familyMode', 'fresh'].forEach(k => { if (got[k] != null) p[k] = got[k]; });
   if (toMin(p.end) - toMin(p.start) < 180) p.end = clock(Math.min(23, +p.start.slice(0, 2) + 8), p.start.slice(3), '', 'x');
   if (got.likes) state.profile.likes = [...new Set([...(state.profile.likes || []), ...got.likes])];
   if (got.diet) state.profile.diet = [...new Set([...state.profile.diet, ...got.diet])];
