@@ -53,6 +53,7 @@ function ideaPrefs() {
       types: ['hike', 'beach', 'city'], budget: 150, people: 2, familyMode: false,
     };
   }
+  if (state.ideaPrefs.fresh == null) state.ideaPrefs.fresh = false;
   if (state.ideaPrefs.date < todayStr()) state.ideaPrefs.date = nextSaturday();
   return state.ideaPrefs;
 }
@@ -144,10 +145,19 @@ async function addElevations(cands) {
   }));
 }
 
+// Places from finished adventures (the sample ones don't count): names and spots to leave out when "somewhere new" is on.
+function visitedPlaces() {
+  const out = [];
+  state.adventures.filter(a => a.status === 'done' && !a.example).forEach(a => a.stops.forEach(s => { if (s.place) out.push({ name: (s.place.label || s.name || '').toLowerCase(), lat: s.place.lat, lon: s.place.lon }); }));
+  return out;
+}
+const beenThere = (c, seen) => seen.some(v => (v.name && v.name === c.name.toLowerCase()) || (v.lat != null && haversine(v, c) < 1));
+
 function shortlist(cands, inp, exclude) {
+  const seen = inp.fresh ? visitedPlaces() : [];
   const R = reachKm(inp), minKm = Math.max(6, R * 0.1);
   const byType = {};
-  cands.filter(c => c.crow >= minKm && c.crow <= R && !exclude.has(c.id) && !reportedClosed({ name: c.name, lat: c.lat, lon: c.lon })
+  cands.filter(c => c.crow >= minKm && c.crow <= R && !exclude.has(c.id) && !(seen.length && beenThere(c, seen)) && !reportedClosed({ name: c.name, lat: c.lat, lon: c.lon })
     && (c.type === 'snow' || seasonRisk(c.elev, inp.date)?.lv !== 'high')).forEach(c => { (byType[c.type] = byType[c.type] || []).push(c); });
   const types = Object.keys(byType);
   const per = Math.max(3, Math.ceil(12 / Math.max(1, types.length)));
@@ -597,6 +607,7 @@ function ideasScreen() {
         <label class="field"><span>Adults</span><input type="number" id="i-people" min="1" data-if="people" value="${p.people}"></label>
         <label class="field"><span>Budget $</span><input type="number" id="i-budget" min="0" step="10" data-if="budget" value="${p.budget}"></label>
       </div>
+      <label class="check" style="border:0"><input type="checkbox" id="i-fresh" data-if="fresh" ${p.fresh ? 'checked' : ''}><span>Somewhere new<small>Skip places from your past adventures</small></span></label>
       ${kids.length ? `<label class="check" style="border:0"><input type="checkbox" id="i-family" data-if="familyMode" ${p.familyMode ? 'checked' : ''}><span>Bring the kids<small>${kids.map(k => esc(k.name || 'Kid') + ' (' + k.age + ')').join(', ')}</small></span></label>` : ''}
     </section>
 
@@ -638,7 +649,7 @@ document.addEventListener('input', e => {
   if (!k) return;
   const p = ideaPrefs();
   if (k === 'maxDrive') { p.maxDrive = DRIVE_STEPS[+el.value]; $('#drive-out').textContent = fmtDur(p.maxDrive); }
-  else if (k === 'familyMode') p.familyMode = el.checked;
+  else if (k === 'familyMode' || k === 'fresh') p[k] = el.checked;
   else if (k === 'people' || k === 'budget') p[k] = num(el.value, k === 'people' ? 1 : 0);
   else p[k] = el.value;
   save();

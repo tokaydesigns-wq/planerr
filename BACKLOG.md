@@ -13,13 +13,11 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## Up next
 
-- [ ] `[feature]` Pip: make "somewhere new" skip places from your past adventures.
 - [ ] `[feature]` Trip recap: a share or print version, and a link to it from the Home cards.
 
 ## In review
 
-- `[polish]` Check the road in for every stop, not just the main one (PR: "Check the road in for every stop")
-- (Open earlier: Favor well-known places in trip ideas, #13)
+- `[feature]` "Somewhere new" skips places from your past adventures (PR: "Somewhere new: skip places you've already been")
 
 ## Needs the owner
 
@@ -35,6 +33,8 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## Done
 
+- [x] Favor well-known places in trip ideas (#13)
+- [x] Check the road in for every stop, not just the main one (#14)
 - [x] Report button on Explore posts (hidden for everyone after 3 reports)
 - [x] Backup file includes trip photos
 - [x] Trip recap: one scrolling story per finished adventure
