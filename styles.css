@@ -489,3 +489,12 @@ a.pill { text-decoration: none; }
 
 /* Explore: report a shared post */
 .report-btn { justify-self: center; color: var(--muted); }
+
+/* Recap share/print */
+.recap-bar { align-items: center; }
+.recap-bar .grow { flex: 1; }
+@media print {
+  .tabbar, nav, .recap-bar, #toast, .hero-top { display: none !important; }
+  body { background: #fff; color: #000; }
+  .card { break-inside: avoid; box-shadow: none; }
+}

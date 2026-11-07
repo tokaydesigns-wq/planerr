@@ -163,6 +163,15 @@ function photosCard(adv, intro) {
 }
 
 // ---------- trip recap: one scrolling story of the day ----------
+// Plain-text version of the recap for sharing (photos stay on the phone)
+function recapText(adv) {
+  const lines = [adv.title, fmtDate(adv.date) + (adv.rating ? ' · ' + '★'.repeat(adv.rating) : '')];
+  if (adv.review) lines.push('', adv.review);
+  const stops = adv.stops.map(s => `${s.main ? '⭐' : '•'} ${s.name || 'Stop'}${s.liked === true ? ' 👍' : s.liked === false ? ' 👎' : ''}${s.tip ? ' (' + s.tip + ')' : ''}`);
+  if (stops.length) lines.push('', ...stops);
+  if (adv.tips) lines.push('', 'Tip for next time: ' + adv.tips);
+  return lines.join('\n');
+}
 function recapScreen(id) {
   const adv = advById(id);
   if (!adv) return `<div class="screen"><div class="empty">That adventure doesn't exist anymore.<a class="btn" href="#/">Go home</a></div></div>`;
@@ -180,7 +189,7 @@ function recapScreen(id) {
   };
   const other = by('other');
   return `<div class="screen">
-    <a class="btn sm" href="#/a/${adv.id}">‹ Back to plan</a>
+    <div class="row recap-bar"><a class="btn sm" href="#/a/${adv.id}">‹ Back to plan</a><span class="grow"></span><button class="btn sm" data-act="ph-share">Share</button><button class="btn sm" data-act="ph-print">Print</button></div>
     <div class="recap-head">${cover ? `<img class="recap-cover" src="${cover}" alt="">` : ''}
       <h1>${esc(adv.title)}</h1>
       <p class="muted">${fmtDate(adv.date)}${adv.rating ? ' · ' : ''}${adv.rating ? stars(adv.rating) : ''}</p>
@@ -248,6 +257,17 @@ document.addEventListener('change', e => {
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-act^="ph-"]');
   if (!el) { if (e.target.id === 'viewer') closeViewer(); return; }
+  if (el.dataset.act === 'ph-recap') { e.preventDefault(); location.hash = '#/recap/' + el.dataset.id; return; }
+  if (el.dataset.act === 'ph-print') { window.print(); return; }
+  if (el.dataset.act === 'ph-share') {
+    const a = advById(parseRoute().id); if (!a) return;
+    const text = recapText(a);
+    try {
+      if (navigator.share) await navigator.share({ title: a.title, text });
+      else { await navigator.clipboard.writeText(text); toast('Recap copied. Paste it into a message.'); }
+    } catch (err) { if (err.name !== 'AbortError') toast('Couldn’t share. Try Print instead.'); }
+    return;
+  }
   const v = $('#viewer'), advId = v?.dataset.adv || parseRoute().id, adv = advById(advId);
   switch (el.dataset.act) {
     case 'ph-open': case 'ph-nav': openViewer(advId, el.dataset.pid); return;
