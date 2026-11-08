@@ -494,6 +494,8 @@ a.pill { text-decoration: none; }
 .recap-bar { align-items: center; }
 .recap-bar .grow { flex: 1; }
 @media print {
+  /* Paper is always light, even when the phone is in dark mode. */
+  :root { --bg: #fff; --surface: #fff; --surface-2: #f1f1f1; --ink: #000; --muted: #555; --line: #ccc; color-scheme: light; }
   .tabbar, nav, .recap-bar, #toast, .hero-top { display: none !important; }
   body { background: #fff; color: #000; }
   .card { break-inside: avoid; box-shadow: none; }
