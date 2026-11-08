@@ -13,11 +13,9 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## Up next
 
-- [ ] `[feature]` Trip recap: a share or print version, and a link to it from the Home cards.
-
 ## In review
 
-- `[feature]` "Somewhere new" skips places from your past adventures (PR: "Somewhere new: skip places you've already been")
+- `[feature]` Trip recap: Share and Print buttons, and a Recap link on past adventure cards (PR: "Trip recap: share, print, and a Recap link on Home")
 
 ## Needs the owner
 
@@ -33,6 +31,7 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## Done
 
+- [x] "Somewhere new" skips places from your past adventures (#15)
 - [x] Favor well-known places in trip ideas (#13)
 - [x] Check the road in for every stop, not just the main one (#14)
 - [x] Report button on Explore posts (hidden for everyone after 3 reports)

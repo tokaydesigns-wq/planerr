@@ -85,7 +85,7 @@ function advCard(a) {
     <div class="stack" style="gap:4px;min-width:0">
       <h3>${esc(a.title)}</h3>
       <div class="meta"><span>${TYPES[a.type]?.e || ''} ${TYPES[a.type]?.label || ''}</span><span>${whenLabel(a)}</span></div>
-      <div class="meta">${a.status === 'done' ? (a.rating ? stars(a.rating) : '<span>Not rated</span>') : `<span>${a.stops.length} stop${a.stops.length === 1 ? '' : 's'}</span>`}${a.status === 'active' ? '<span class="pill coral">In progress</span>' : ''}${a.example ? '<span class="pill example-flag">Example</span>' : ''}</div>
+      <div class="meta">${a.status === 'done' ? (a.rating ? stars(a.rating) : '<span>Not rated</span>') : `<span>${a.stops.length} stop${a.stops.length === 1 ? '' : 's'}</span>`}${a.status === 'active' ? '<span class="pill coral">In progress</span>' : ''}${a.status === 'done' ? `<span class="pill" role="link" data-act="ph-recap" data-id="${a.id}">Recap</span>` : ''}${a.example ? '<span class="pill example-flag">Example</span>' : ''}</div>
     </div></a>`;
 }
 
