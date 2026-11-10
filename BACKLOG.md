@@ -15,8 +15,6 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## In review
 
-- `[feature]` Trip recap: Share and Print buttons, and a Recap link on past adventure cards (PR: "Trip recap: share, print, and a Recap link on Home")
-
 ## Needs the owner
 
 - [ ] `[needs-owner]` Google "temporarily closed" status and in-app Google reviews need a Google Cloud account with billing (Places API). Declined for now.
@@ -31,6 +29,7 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## Done
 
+- [x] Trip recap: Share and Print buttons, and a Recap link on past adventure cards (#16)
 - [x] "Somewhere new" skips places from your past adventures (#15)
 - [x] Favor well-known places in trip ideas (#13)
 - [x] Check the road in for every stop, not just the main one (#14)
