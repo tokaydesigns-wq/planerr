@@ -500,3 +500,4 @@ a.pill { text-decoration: none; }
   body { background: #fff; color: #000; }
   .card { break-inside: avoid; box-shadow: none; }
 }
+.cal-row { margin: -4px 0 14px; }
