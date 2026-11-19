@@ -40,7 +40,7 @@ const whenLabel = adv => {
 // ---------- render ----------
 function render() {
   const { view, id } = parseRoute();
-  const screens = { home, ideas: ideasScreen, idea: () => ideaDetail(id), chat: chatScreen, new: () => formScreen(null), edit: () => formScreen(id), a: () => detail(id), brief: () => briefing(id), live: () => live(id), rate: () => rateScreen(id), recap: () => recapScreen(id), explore: () => explore(id), family, you };
+  const screens = { home, ideas: ideasScreen, idea: () => ideaDetail(id), chat: chatScreen, new: () => formScreen(null), edit: () => formScreen(id), a: () => detail(id), brief: () => briefing(id), live: () => live(id), rate: () => rateScreen(id), view: viewScreen, recap: () => recapScreen(id), explore: () => explore(id), family, you };
   const fn = screens[view] || home;
   $('#app').innerHTML = fn();
   // Fade in only when arriving on a screen, not on every in-place update.
@@ -465,7 +465,7 @@ function detail(id) {
       <div class="stat"><span class="k">${b.left >= 0 ? 'Left over' : 'Over by'}</span><span class="v" style="color:${b.left >= 0 ? 'var(--good)' : 'var(--bad)'}">${money(Math.abs(b.left))}</span></div>
     </div>
     <p class="note" style="margin-top:-10px">Spend estimate: stops ${money(b.stopsCost)}${b.fuel ? ` + fuel ${money(b.fuel)}` : ''}${b.food ? ` + ${b.meals.join(' & ')} for ${b.people} (${money(b.food)})` : ''}.</p>
-    ${adv.status === 'planned' ? `<div class="row wrap cal-row"><button class="btn sm" data-act="cal-add">📅 Add to calendar</button><a class="btn sm" href="${esc(googleCalUrl(adv))}" target="_blank" rel="noopener">Google Calendar</a></div>` : ''}
+    ${adv.status === 'planned' ? `<div class="row wrap cal-row"><button class="btn sm" data-act="cal-add">📅 Add to calendar</button><button class="btn sm" data-act="share-send">📨 Send to family</button><a class="btn sm" href="${esc(googleCalUrl(adv))}" target="_blank" rel="noopener">Google Calendar</a></div>` : ''}
 
     ${adv.status === 'done' ? `<section class="card"><h2>How it went</h2>${adv.rating ? stars(adv.rating) : ''}${adv.review ? `<p>${esc(adv.review)}</p>` : ''}${adv.tips ? `<p class="small muted">Tip: ${esc(adv.tips)}</p>` : ''}${!adv.rating ? `<a class="btn primary" href="#/rate/${adv.id}">Rate this adventure</a>` : `<a class="btn" href="#/recap/${adv.id}">See the trip recap</a>`}</section>` : ''}
 
