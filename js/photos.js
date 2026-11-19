@@ -209,11 +209,13 @@ async function openViewer(advId, pid) {
   let rec;
   try { rec = await PhotoDB.get(pid); } catch (e) { return; }
   if (!rec) return;
+  // Remember what had focus so closing the viewer can hand it back (not when stepping between photos).
+  const back = $('#viewer')?.returnTo || (document.activeElement !== document.body ? document.activeElement : null);
   closeViewer();
   const url = URL.createObjectURL(rec.full), p = list[i], cur = photoStopOf(adv, p);
   const v = document.createElement('div');
   v.className = 'viewer'; v.id = 'viewer'; v.dataset.url = url; v.dataset.adv = advId; v.dataset.pid = pid;
-  v.setAttribute('role', 'dialog'); v.setAttribute('aria-label', 'Photo');
+  v.setAttribute('role', 'dialog'); v.setAttribute('aria-modal', 'true'); v.setAttribute('aria-label', `Photo ${i + 1} of ${list.length}`);
   v.innerHTML = `
     <div class="v-top"><span class="pill">${i + 1} / ${list.length}</span><span class="spacer"></span><button class="icon-btn" data-act="ph-close" aria-label="Close">✕</button></div>
     <div class="v-img"><img src="${url}" alt="">
@@ -229,8 +231,10 @@ async function openViewer(advId, pid) {
         <button class="btn sm" data-act="ph-del" style="color:var(--bad)">Delete</button>
       </div>
     </div>`;
+  v.returnTo = back;
   document.body.appendChild(v);
   document.body.style.overflow = 'hidden';
+  $('#app').inert = true; $('#tabbar').inert = true;
   v.querySelector('[data-act="ph-close"]').focus();
 }
 function closeViewer() {
@@ -238,6 +242,8 @@ function closeViewer() {
   if (!v) return;
   URL.revokeObjectURL(v.dataset.url); v.remove();
   document.body.style.overflow = '';
+  $('#app').inert = false; $('#tabbar').inert = false;
+  if (v.returnTo?.isConnected) v.returnTo.focus();
 }
 
 document.addEventListener('change', e => {
