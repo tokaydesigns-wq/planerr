@@ -508,6 +508,27 @@ a.pill { text-decoration: none; }
 /* Shared plan view (js/share.js) */
 .share-head h1 { font-size: 1.5rem; margin: 6px 0 2px; }
 
+/* First-time welcome (js/welcome.js) */
+.welcome { position: fixed; inset: 0; z-index: 100; display: grid; align-items: end; background: rgba(11, 21, 19, .55); padding: 0; }
+.wl-card { background: var(--bg); border-radius: 28px 28px 0 0; border-top: 2.5px solid var(--outline); padding: 18px 0 calc(16px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 14px; max-width: 520px; width: 100%; margin: 0 auto; max-height: 100%; overflow: hidden; }
+.wl-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }
+.wl-track::-webkit-scrollbar { display: none; }
+.wl-slide { flex: 0 0 100%; scroll-snap-align: center; padding: 0 22px; display: grid; gap: 10px; align-content: start; text-align: center; box-sizing: border-box; min-width: 0; }
+.wl-art { display: grid; justify-items: center; background: color-mix(in srgb, var(--sun) 35%, var(--surface-2)); border-radius: 22px; padding: 18px 0 8px; border: 2px solid var(--line); }
+.wl-art .pip { width: 150px; height: auto; }
+.wl-slide h2 { font-size: 1.4rem; margin: 6px 0 0; }
+.wl-slide p { margin: 0; color: var(--muted); line-height: 1.45; }
+.wl-slide p b { color: var(--ink); }
+.wl-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; text-align: left; justify-self: center; font-weight: 600; }
+.wl-tip { font-size: .9rem; background: var(--surface-2); border-radius: 14px; padding: 10px 12px; }
+.wl-dots { display: flex; justify-content: center; gap: 8px; }
+.wl-dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--line); transition: width .2s, background .2s; }
+.wl-dots i.on { width: 22px; border-radius: 8px; background: var(--coral); }
+.wl-btns { display: flex; justify-content: space-between; gap: 10px; padding: 0 22px; }
+.wl-btns .btn.primary { margin-left: auto; min-width: 120px; }
+@media (prefers-reduced-motion: reduce) { .wl-track { scroll-behavior: auto; } .wl-dots i { transition: none; } }
+.wl-btns [hidden] { display: none; }
+
 /* ---- spending ---- */
 .sp-total { margin: 0; font-size: 1.05rem; }
 .sp-form { display: grid; gap: 12px; padding: 12px 0; }

@@ -141,7 +141,7 @@ function seedState() {
     review: 'Tide pools at low tide were the highlight. The boardwalk gets busy after 2 PM.',
     tips: 'Check the tide chart and go to Natural Bridges at low tide.',
   });
-  return { profile: { name: '', units: defaultUnits(), diet: [], taste: {}, likes: [] }, family: { kids: [] }, adventures: [upcoming, past], seen: {} };
+  return { profile: { name: '', units: defaultUnits(), diet: [], taste: {}, likes: [] }, family: { kids: [] }, adventures: [upcoming, past], seen: { welcome: false } };
 }
 
 function loadState() {
@@ -151,6 +151,8 @@ function loadState() {
       s.profile = { name: '', units: defaultUnits(), diet: [], taste: {}, likes: [], ...s.profile };
       s.family = s.family || { kids: [] };
       s.seen = s.seen || {};
+      // Anyone with saved data before the welcome existed has already found their way around.
+      if (s.seen.welcome === undefined) s.seen.welcome = true;
       // Trips saved before spend tracking have no spent list.
       s.adventures.forEach(a => { if (!Array.isArray(a.spent)) a.spent = []; });
       return s;
