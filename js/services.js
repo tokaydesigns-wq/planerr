@@ -5,10 +5,63 @@
 //   Wikipedia (photos & descriptions)
 //   Supabase (community feed, optional; see config.js)
 
+// Small answer cache for lookups that don't change minute to minute (places, photos, routes), kept in
+// localStorage under its own key so a repeat search near the same town skips the network.
+// Oldest answers are dropped past 150 entries or ~0.8 MB. Every storage call is wrapped, because
+// storage can be full or blocked; if it is, lookups just go to the network as before.
+const DAY = 864e5, CACHE_KEY = 'planerr.cache.v1', CACHE_MAX = 150, CACHE_CHARS = 0.8e6;
+const cacheTTL = url => {
+  if (/open-meteo\.com\/v1\/forecast/.test(url)) return 0;                        // weather: always fresh
+  if (/prop=pageviews/.test(url) || /router\.project-osrm\.org/.test(url)) return DAY; // reads and routes: 1 day
+  if (/query\.wikidata\.org|wikipedia\.org|nominatim\.openstreetmap\.org|photon\.komoot\.io|open-meteo\.com\/v1\/elevation/.test(url)) return 7 * DAY;
+  return 0;
+};
+let cacheStore = null, cacheSaveTimer = 0;
+const inflight = new Map();
+function cacheLoad() {
+  if (cacheStore) return cacheStore;
+  cacheStore = {};
+  try { cacheStore = JSON.parse(localStorage.getItem(CACHE_KEY)) || {}; } catch (e) { cacheStore = {}; }
+  return cacheStore;
+}
+function cacheGet(url) {
+  const e = cacheLoad()[url];
+  if (!e) return undefined;
+  if (Date.now() > e.exp) { delete cacheStore[url]; return undefined; }
+  try { return JSON.parse(e.v); } catch (err) { return undefined; }
+}
+function cachePut(url, data, ttl) {
+  try {
+    const store = cacheLoad(), v = JSON.stringify(data);
+    if (v.length > 120000) return;
+    store[url] = { exp: Date.now() + ttl, at: Date.now(), v };
+    const keys = Object.keys(store).sort((a, b) => store[a].at - store[b].at);
+    let chars = keys.reduce((n, k) => n + store[k].v.length, 0);
+    while (keys.length > CACHE_MAX || chars > CACHE_CHARS) { const k = keys.shift(); chars -= store[k].v.length; delete store[k]; }
+  } catch (e) { return; }
+  clearTimeout(cacheSaveTimer);
+  cacheSaveTimer = setTimeout(() => {
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify(cacheStore)); } catch (e) {
+      try { localStorage.removeItem(CACHE_KEY); } catch (err) {}   // full: start over rather than fail
+    }
+  }, 400);
+}
+
 async function getJSON(url, opts) {
-  const r = await fetch(url, opts);
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  return r.json();
+  const ttl = opts ? 0 : cacheTTL(url);
+  if (!ttl) {
+    const r = await fetch(url, opts);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  }
+  const hit = cacheGet(url);
+  if (hit !== undefined) return hit;
+  // The same request made twice at once shares one network call.
+  if (!inflight.has(url)) {
+    inflight.set(url, fetch(url).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(d => { cachePut(url, d, ttl); return d; }).finally(() => inflight.delete(url)));
+  }
+  return JSON.parse(JSON.stringify(await inflight.get(url)));
 }
 
 // The public OpenStreetMap servers get busy, so each one gets a time limit before trying the next.
@@ -31,9 +84,14 @@ const elPoint = e => ({ lat: e.lat ?? e.center?.lat, lon: e.lon ?? e.center?.lon
 // the previous call started (not after it finished), so the queue never goes faster than that.
 let nominatimSlot = Promise.resolve();
 function nominatim(params, path = 'search') {
+  const url = `https://nominatim.openstreetmap.org/${path}?format=jsonv2&` + new URLSearchParams(params);
+  // A saved or already-running answer needs no slot in the one-a-second queue.
+  const hit = cacheGet(url);
+  if (hit !== undefined) return Promise.resolve(hit);
+  if (inflight.has(url)) return getJSON(url);
   const start = nominatimSlot;
   nominatimSlot = start.then(() => new Promise(r => setTimeout(r, 1000)));
-  return start.then(() => getJSON(`https://nominatim.openstreetmap.org/${path}?format=jsonv2&` + new URLSearchParams(params)));
+  return start.then(() => getJSON(url));
 }
 
 const foodItem = (id, name, amenity, pt, t) => ({

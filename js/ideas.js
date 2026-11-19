@@ -288,21 +288,19 @@ async function generateIdeas(shuffle) {
   setStep('places');
   try {
     if (!run.cands) run.cands = await findCandidates(inp);
-    await addElevations(run.cands);
-    await addViews(run.cands);
+    await Promise.all([addElevations(run.cands), addViews(run.cands)]);
     let pool = shortlist(run.cands, inp, run.seen);
     if (pool.length < 3 && run.seen.size) { run.seen = new Set(); pool = shortlist(run.cands, inp, run.seen); }
     if (!pool.length) throw { friendly: `Couldn’t find matching places within ${fmtDur(inp.maxDrive)}. Try a longer drive or add more kinds of day.` };
 
+    // Drive times and weather don't depend on each other, so they're fetched together.
     setStep('drive');
-    const drives = await API.driveTable(inp.origin, pool);
-    pool.forEach((c, i) => { c.drive = drives[i]; });
-
-    setStep('weather');
     const days = daysUntil(inp.date);
-    if (days >= 0 && days <= 15) {
-      try { const wx = await API.weatherMany(pool, inp.date, state.profile.units); pool.forEach((c, i) => { c.wx = wx[i]; }); } catch (e) {}
-    }
+    const [drives] = await Promise.all([
+      API.driveTable(inp.origin, pool),
+      days >= 0 && days <= 15 ? API.weatherMany(pool, inp.date, state.profile.units).then(wx => { pool.forEach((c, i) => { c.wx = wx[i]; }); }).catch(() => {}) : null,
+    ]);
+    pool.forEach((c, i) => { c.drive = drives[i]; });
     pool.forEach(c => { c.score = scoreCandidate(c, inp); });
     let picks = pickThree(pool);
     if (!picks.length) throw { friendly: `Nothing within ${fmtDur(inp.maxDrive)} of driving fits between ${fmtTime(toMin(inp.start))} and ${fmtTime(toMin(inp.end))}. Try a longer drive or a longer day.` };
