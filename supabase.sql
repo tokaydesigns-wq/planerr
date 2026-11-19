@@ -67,3 +67,31 @@ end $$;
 drop trigger if exists hide_reported on public.adventure_reports;
 create trigger hide_reported after insert on public.adventure_reports
   for each row execute function public.hide_reported();
+
+-- ---------- Owner tools: reviewing reported posts (added Nov 2026) ----------
+-- These are for YOU, in the Supabase dashboard (SQL Editor). They are NOT part of the app and
+-- are all inside /* ... */ comments, so running this whole file again does nothing to them.
+-- To use one: copy it (without the /* and */ lines) into a NEW query tab, and click Run.
+-- The README ("Reviewing reported posts") has the same queries with step-by-step clicks.
+
+/* 1. LIST hidden posts (newest first). Safe: only reads.
+select a.id, a.title, a.region as place, a.created_at as posted_on, count(r.reporter) as reports
+from public.adventures a
+left join public.adventure_reports r on r.adventure_id = a.id
+where a.hidden
+group by a.id
+order by a.created_at desc;
+*/
+
+/* 2. RESTORE a post: show it in Explore again. Replace PASTE-POST-ID-HERE with an id from query 1.
+   Its reports are cleared too, so it doesn't instantly hide itself again.
+begin;
+delete from public.adventure_reports where adventure_id = 'PASTE-POST-ID-HERE';
+update public.adventures set hidden = false where id = 'PASTE-POST-ID-HERE';
+commit;
+*/
+
+/* 3. DELETE a post FOREVER (and its reports). This can't be undone.
+   Replace PASTE-POST-ID-HERE with an id from query 1.
+delete from public.adventures where id = 'PASTE-POST-ID-HERE';
+*/

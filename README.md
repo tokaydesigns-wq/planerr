@@ -52,7 +52,49 @@ Without this, Explore shows built-in examples only.
 3. Go to **Project Settings → API** and copy the **Project URL** and the **anon public** key into `config.js`.
 4. Deploy again. When people rate an adventure, they can choose to share it to Explore.
 
-The anon key is meant to be public. Row Level Security lets anyone read and post, but nobody can edit or delete other people's posts through the app. To remove a post, delete it in the Supabase table editor.
+The anon key is meant to be public. Row Level Security lets anyone read and post, but nobody can edit or delete other people's posts through the app. To review reported posts or remove one, see **Reviewing reported posts** below.
+
+## Reviewing reported posts
+
+When 3 different phones report a community post, it's hidden from Explore automatically. You decide whether it stays hidden, comes back, or is deleted. There's no admin screen in the app on purpose: the app's key is public, so anyone could open one. Instead you do this in Supabase, where only you are signed in.
+
+**See the hidden posts**
+
+1. Go to https://supabase.com, sign in, and open your Planerr project.
+2. Click **SQL Editor** in the left menu, then **New query**.
+3. Paste this and click **Run**. You'll get a table with each hidden post's `id`, title, place, date posted and number of reports (newest first). It only looks; it changes nothing.
+
+```sql
+select a.id, a.title, a.region as place, a.created_at as posted_on, count(r.reporter) as reports
+from public.adventures a
+left join public.adventure_reports r on r.adventure_id = a.id
+where a.hidden
+group by a.id
+order by a.created_at desc;
+```
+
+**Bring a post back (it was fine)**
+
+1. In the results above, copy the post's `id` (click the cell, then copy).
+2. Click **New query**, paste this, and replace `PASTE-POST-ID-HERE` with the id. Keep the quote marks.
+3. Click **Run**. The post shows in Explore again, and its reports are wiped so it doesn't hide itself straight away.
+
+```sql
+begin;
+delete from public.adventure_reports where adventure_id = 'PASTE-POST-ID-HERE';
+update public.adventures set hidden = false where id = 'PASTE-POST-ID-HERE';
+commit;
+```
+
+**Delete a post for good (it was bad)**
+
+Same steps, with this query. **Deleting can't be undone.** If you're unsure, leave the post hidden, because hidden posts are invisible to everyone anyway.
+
+```sql
+delete from public.adventures where id = 'PASTE-POST-ID-HERE';
+```
+
+Tips: use a fresh **New query** each time so you only run the one you meant to. Supabase may show a warning for the delete query, which is normal. The same queries are saved (commented out) at the bottom of `supabase.sql`.
 
 ## Limits to know
 
