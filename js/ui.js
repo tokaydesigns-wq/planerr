@@ -524,6 +524,8 @@ function detail(id) {
     ${nearbyCard(adv)}
     ${familyCard(adv)}
     ${gearCard(adv)}
+    ${adv.status === 'done' ? spendSummary(adv) : ''}
+    ${adv.status !== 'planned' ? spendCard(adv) : ''}
     ${adv.notes ? `<section class="card"><h2>Notes</h2><p>${esc(adv.notes)}</p></section>` : ''}
     ${researchCard(adv)}
     <div class="sticky-cta">${cta}</div>
@@ -643,6 +645,7 @@ function live(id) {
     <section class="card"><h2>Stops</h2>
       ${adv.stops.map((s, j) => `<label class="check ${s.done ? 'done' : ''}"><input type="checkbox" data-act="stop-toggle" data-sid="${s.id}" ${s.done ? 'checked' : ''}><span>${esc(s.name)}<small>${fmtTime(sch.rows[j].arrive)} · ${fmtDur(s.dur)}</small></span></label>`).join('')}
     </section>
+    ${spendCard(adv)}
     <a class="btn dark block" href="#/rate/${adv.id}" style="min-height:52px">Finish & rate the day</a>
   </div>`;
 }
@@ -885,7 +888,7 @@ document.addEventListener('click', async e => {
     }
     case 'again': {
       const c = draftFrom(adv);
-      Object.assign(c, { id: uid(), status: 'planned', rating: 0, review: '', date: nextSaturday(), research: {}, example: false, createdAt: Date.now() });
+      Object.assign(c, { id: uid(), status: 'planned', rating: 0, review: '', date: nextSaturday(), research: {}, spent: [], example: false, createdAt: Date.now() });
       c.stops.forEach(s => { s.id = uid(); s.done = false; s.liked = null; });
       c.packing.forEach(p => { p.done = false; });
       c._for = 'new'; ui.draft = c; ui.keepDraft = true; go('new'); return;

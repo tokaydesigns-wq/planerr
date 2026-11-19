@@ -115,7 +115,7 @@ function newAdventure(over = {}) {
   return {
     id: uid(), title: '', type: 'hike', date: nextSaturday(), start: '08:00', end: '18:00',
     budget: 100, people: 2, origin: null, stops: [], familyMode: false, notes: '',
-    status: 'planned', rating: 0, review: '', tips: '', packing: [], research: {}, createdAt: Date.now(), ...over,
+    status: 'planned', rating: 0, review: '', tips: '', packing: [], spent: [], research: {}, createdAt: Date.now(), ...over,
   };
 }
 function newStop(over = {}) { return { id: uid(), name: '', cat: 'sight', dur: 60, cost: 0, place: null, done: false, liked: null, tip: '', ...over }; }
@@ -153,6 +153,8 @@ function loadState() {
       s.seen = s.seen || {};
       // Anyone with saved data before the welcome existed has already found their way around.
       if (s.seen.welcome === undefined) s.seen.welcome = true;
+      // Trips saved before spend tracking have no spent list.
+      s.adventures.forEach(a => { if (!Array.isArray(a.spent)) a.spent = []; });
       return s;
     }
   } catch (e) {}
