@@ -151,6 +151,8 @@ function loadState() {
       s.profile = { name: '', units: defaultUnits(), diet: [], taste: {}, likes: [], ...s.profile };
       s.family = s.family || { kids: [] };
       s.seen = s.seen || {};
+      // Anyone with saved data before the welcome existed has already found their way around.
+      if (s.seen.welcome === undefined) s.seen.welcome = true;
       return s;
     }
   } catch (e) {}

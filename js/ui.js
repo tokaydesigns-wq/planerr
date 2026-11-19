@@ -788,6 +788,7 @@ function you() {
       <p class="small"><b>${backupAge()}</b></p>
       <div class="row wrap"><button class="btn sm primary" data-act="export">Back up now</button><label class="btn sm">Restore from backup<input type="file" id="import" accept="application/json,.json" hidden></label>${state.adventures.some(a => a.example) ? '<button class="btn sm" data-act="clear-examples">Remove examples</button>' : ''}</div>
     </section>
+    <p class="note"><a href="#/you" data-act="welcome-again">Show the intro again</a></p>
     <p class="note">Data: Open-Meteo, OpenStreetMap contributors, OSRM, Photon by Komoot, Wikipedia.</p>
   </div>`;
 }
