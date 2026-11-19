@@ -6,8 +6,13 @@ const ui = { draft: null, results: {}, timers: {}, busy: {}, rainBusy: {}, rainF
 const svgIcon = d => `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const I = { back: svgIcon('<path d="M15 5l-7 7 7 7"/>'), edit: svgIcon('<path d="M4 20h4L19 9l-4-4L4 16z"/>') };
 
+// Screen readers hear this always-present live region (a region that toggles `hidden` is often missed).
+function announce(msg) {
+  const r = $('#announce'); if (!r) return;
+  r.textContent = ''; setTimeout(() => { r.textContent = msg; }, 60);
+}
 function toast(msg) {
-  const t = $('#toast'); t.textContent = msg; t.hidden = false;
+  const t = $('#toast'); t.textContent = msg; t.hidden = false; announce(msg);
   clearTimeout(ui.timers.toast); ui.timers.toast = setTimeout(() => { t.hidden = true; }, 2600);
 }
 const parseRoute = () => { const [view, id] = location.hash.replace(/^#\/?/, '').split('/'); return { view: view || 'home', id: id ? decodeURIComponent(id) : null }; };
@@ -42,11 +47,23 @@ function render() {
   const { view, id } = parseRoute();
   const screens = { home, ideas: ideasScreen, idea: () => ideaDetail(id), chat: chatScreen, new: () => formScreen(null), edit: () => formScreen(id), a: () => detail(id), brief: () => briefing(id), live: () => live(id), rate: () => rateScreen(id), view: viewScreen, recap: () => recapScreen(id), explore: () => explore(id), family, you };
   const fn = screens[view] || home;
+  // Remember which control had focus so an in-place re-render doesn't drop keyboard users back to the top.
+  const af = document.activeElement, esc1 = v => String(v).replace(/["\\]/g, '\\$&');
+  const keep = !af || !$('#app').contains(af) ? '' : af.tagName === 'H1' ? 'h1' : af.id ? '#' + CSS.escape(af.id)
+    : Object.keys(af.dataset).length ? af.tagName.toLowerCase() + Object.entries(af.dataset).map(([k, v]) => `[data-${k.replace(/[A-Z]/g, m => '-' + m.toLowerCase())}="${esc1(v)}"]`).join('') : '';
   $('#app').innerHTML = fn();
   // Fade in only when arriving on a screen, not on every in-place update.
-  if (ui.shown !== location.hash) { ui.shown = location.hash; $('#app').firstElementChild?.classList.add('enter'); }
+  if (ui.shown !== location.hash) { ui.changed = ui.shown !== undefined; ui.shown = location.hash; $('#app').firstElementChild?.classList.add('enter'); }
   const tab = { new: 'new', edit: 'new', ideas: 'new', idea: 'new', chat: 'home', explore: 'explore', family: 'family', you: 'you' }[view] || 'home';
-  $$('#tabbar a').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));
+  $$('#tabbar a').forEach(a => { const on = a.dataset.tab === tab; a.classList.toggle('on', on); if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+  $$('#app button.chip:not([role]), #app button.type-opt:not([role])').forEach(b => { if (!b.hasAttribute('aria-pressed')) b.setAttribute('aria-pressed', b.classList.contains('on')); });
+  // Tell screen readers the page changed: new title, and focus moves to the screen's heading.
+  const h1 = $('#app h1'), name = h1 ? h1.textContent.replace(/[^\p{L}\p{N}\s',.!?&-]/gu, '').trim() : '';
+  document.title = view === 'home' || !name ? 'Planerr' : `${name} · Planerr`;
+  if (h1) h1.tabIndex = -1;
+  if (h1 && ui.changed) h1.focus({ preventScroll: true });
+  if (!ui.changed && keep) { try { $(`#app ${keep}`)?.focus({ preventScroll: true }); } catch (e) { /* odd selector: skip */ } }
+  ui.changed = false;
   $('#tabbar').hidden = view === 'brief';
   afterRender(view, id);
 }
@@ -67,7 +84,8 @@ async function runResearch(adv) {
   ui.busy[adv.id] = true; ui.steps[adv.id] = {}; delete ui.rainFailed[adv.id];
   const rerender = () => { const r = parseRoute(); if (r.id === adv.id) render(); };
   rerender();
-  await research(adv, (name, st) => { ui.steps[adv.id][name] = st; });
+  await research(adv, (name, st) => { ui.steps[adv.id][name] = st; if (st === 'start' && !ui.steps[adv.id].said) { ui.steps[adv.id].said = 1; announce('Researching your plan…'); } });
+  announce('Research finished.');
   ui.busy[adv.id] = false;
   save(); rerender();
 }
@@ -87,7 +105,7 @@ function advCard(a) {
     <div class="stack" style="gap:4px;min-width:0">
       <h3>${esc(a.title)}</h3>
       <div class="meta"><span>${TYPES[a.type]?.e || ''} ${TYPES[a.type]?.label || ''}</span><span>${whenLabel(a)}</span></div>
-      <div class="meta">${a.status === 'done' ? (a.rating ? stars(a.rating) : '<span>Not rated</span>') : `<span>${a.stops.length} stop${a.stops.length === 1 ? '' : 's'}</span>`}${a.status === 'active' ? '<span class="pill coral">In progress</span>' : ''}${a.status === 'done' ? `<span class="pill" role="link" data-act="ph-recap" data-id="${a.id}">Recap</span>` : ''}${a.example ? '<span class="pill example-flag">Example</span>' : ''}</div>
+      <div class="meta">${a.status === 'done' ? (a.rating ? stars(a.rating) : '<span>Not rated</span>') : `<span>${a.stops.length} stop${a.stops.length === 1 ? '' : 's'}</span>`}${a.status === 'active' ? '<span class="pill coral">In progress</span>' : ''}${a.status === 'done' ? `<span class="pill" role="link" tabindex="0" data-act="ph-recap" data-id="${a.id}">Recap</span>` : ''}${a.example ? '<span class="pill example-flag">Example</span>' : ''}</div>
     </div></a>`;
 }
 
@@ -134,7 +152,7 @@ function draftFrom(adv) { return JSON.parse(JSON.stringify(adv)); }
 
 function pickerHTML(key, placeholder, value) {
   return `<div class="place-field">
-    <input type="search" id="pk-${key}" data-search="${key}" placeholder="${esc(placeholder)}" autocomplete="off" value="${esc(value || '')}">
+    <input type="search" id="pk-${key}" data-search="${key}" placeholder="${esc(placeholder)}" aria-label="${esc(placeholder)}" autocomplete="off" value="${esc(value || '')}">
     <div class="suggest" id="sg-${key}" hidden></div>
   </div>`;
 }
@@ -596,7 +614,7 @@ function briefing(id) {
     <div class="row"><a class="icon-btn" href="#/a/${adv.id}" aria-label="Back" style="background:rgba(255,255,255,.6)">${I.back}</a></div>
     <div class="hello">
       <div class="brief-pip">${pip('happy', 'bob')}</div>
-      <h1>${hi}${state.profile.name ? ', ' + esc(state.profile.name) : ''} <span class="wave">👋</span></h1>
+      <h1>${hi}${state.profile.name ? ', ' + esc(state.profile.name) : ''} <span class="wave" aria-hidden="true">👋</span></h1>
       <p>Here's your briefing for <b>${esc(adv.title)}</b>: ${adv.stops.length} stop${adv.stops.length === 1 ? '' : 's'}${sch.routed ? `, ${fmtDur(sch.driveMin)} of driving` : ''}, back around <b>${fmtTime(sch.home)}</b>.</p>
     </div>
     ${dayNote}
@@ -663,7 +681,7 @@ function rateScreen(id) {
       <span class="muted small">${['Tap to rate', 'Not great', 'It was OK', 'Good day', 'Great day', 'Perfect day!'][ui.rating]}</span>
     </section>
     <section class="card"><h2>Each stop</h2>
-      <div class="list">${adv.stops.map(s => `<div class="li" data-stop="${s.id}"><div class="ic">${CATS[s.cat]?.e}</div><div class="main"><b>${esc(s.name)}</b><input type="text" data-sf-rate="tip" value="${esc(s.tip)}" placeholder="Tip for others (optional)" style="min-height:38px;margin-top:4px"></div>
+      <div class="list">${adv.stops.map(s => `<div class="li" data-stop="${s.id}"><div class="ic">${CATS[s.cat]?.e}</div><div class="main"><b>${esc(s.name)}</b><input type="text" data-sf-rate="tip" value="${esc(s.tip)}" placeholder="Tip for others (optional)" aria-label="Tip for ${esc(s.name)} (optional)" style="min-height:38px;margin-top:4px"></div>
         <div class="acts"><button class="icon-btn" data-act="like" data-v="1" style="${s.liked === true ? 'background:var(--good-soft)' : ''}" aria-label="Loved it">👍</button><button class="icon-btn" data-act="like" data-v="0" style="${s.liked === false ? 'background:var(--bad-soft)' : ''}" aria-label="Skip next time">👎</button></div></div>`).join('')}</div>
     </section>
     ${photosCard(adv, 'Add your pictures from the day. Put each one under the stop where you took it, so every place keeps its own album.')}
@@ -797,6 +815,10 @@ function you() {
 }
 
 // ---------- events ----------
+// Clickable spans (role="link") also work from the keyboard.
+document.addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('[data-act][role="link"]:not(a)')) { e.preventDefault(); e.target.click(); }
+});
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-act]');
   if (!el) {
