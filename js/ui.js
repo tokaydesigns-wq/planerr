@@ -464,6 +464,7 @@ function detail(id) {
       <div class="stat"><span class="k">${b.left >= 0 ? 'Left over' : 'Over by'}</span><span class="v" style="color:${b.left >= 0 ? 'var(--good)' : 'var(--bad)'}">${money(Math.abs(b.left))}</span></div>
     </div>
     <p class="note" style="margin-top:-10px">Spend estimate: stops ${money(b.stopsCost)}${b.fuel ? ` + fuel ${money(b.fuel)}` : ''}${b.food ? ` + ${b.meals.join(' & ')} for ${b.people} (${money(b.food)})` : ''}.</p>
+    ${adv.status === 'planned' ? `<div class="row wrap cal-row"><button class="btn sm" data-act="cal-add">📅 Add to calendar</button><a class="btn sm" href="${esc(googleCalUrl(adv))}" target="_blank" rel="noopener">Google Calendar</a></div>` : ''}
 
     ${adv.status === 'done' ? `<section class="card"><h2>How it went</h2>${adv.rating ? stars(adv.rating) : ''}${adv.review ? `<p>${esc(adv.review)}</p>` : ''}${adv.tips ? `<p class="small muted">Tip: ${esc(adv.tips)}</p>` : ''}${!adv.rating ? `<a class="btn primary" href="#/rate/${adv.id}">Rate this adventure</a>` : `<a class="btn" href="#/recap/${adv.id}">See the trip recap</a>`}</section>` : ''}
 
@@ -485,6 +486,41 @@ function detail(id) {
     ${researchCard(adv)}
     <div class="sticky-cta">${cta}</div>
   </div>`;
+}
+
+// ---------- Calendar ----------
+// The trip as calendar times. Floating local time (no time zone), so it lands at the same clock time wherever the phone is.
+function calTimes(adv) {
+  const at = m => { const d = new Date(adv.date + 'T00:00'); d.setMinutes(m); return d; };
+  const stamp = d => `${localISO(d).replace(/-/g, '')}T${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}00`;
+  const start = toMin(adv.start), end = Math.max(schedule(adv).home, start + 30);
+  return { start: stamp(at(start)), end: stamp(at(end)) };
+}
+function calWhere(adv) { const p = mainStop(adv)?.place; return p ? [p.label, p.sub].filter(Boolean).join(', ') : ''; }
+function calDetails(adv) {
+  const sch = schedule(adv);
+  const lines = adv.origin ? [`${fmtTime(toMin(adv.start))} Leave ${adv.origin.label}`] : [];
+  adv.stops.forEach((s, i) => lines.push(`${fmtTime(sch.rows[i].arrive)} ${s.name || 'Stop'}`));
+  if (adv.origin) lines.push(`${fmtTime(sch.home)} Home`);
+  return lines.join('\n') + `\n\nFull plan in Planerr: ${location.origin}${location.pathname}#/a/${adv.id}`;
+}
+// Google Calendar's "new event" page, filled in. Free, no key: it only opens when the person taps it.
+function googleCalUrl(adv) {
+  const t = calTimes(adv);
+  return 'https://calendar.google.com/calendar/render?' + new URLSearchParams({ action: 'TEMPLATE', text: adv.title || 'Adventure', dates: `${t.start}/${t.end}`, details: calDetails(adv), location: calWhere(adv) });
+}
+// A standard .ics file that iPhone, Android and desktop calendars all open. Includes a reminder the day before.
+function calendarFile(adv) {
+  const t = calTimes(adv), now = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
+  const txt = s => String(s).replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/[,;]/g, m => '\\' + m);
+  const fold = l => l.length <= 74 ? l : l.match(/.{1,73}/g).join('\r\n ');
+  const p = mainStop(adv)?.place;
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Planerr//Day trips//EN', 'BEGIN:VEVENT',
+    `UID:${adv.id}@planerr`, `DTSTAMP:${now}`, `DTSTART:${t.start}`, `DTEND:${t.end}`,
+    `SUMMARY:${txt(adv.title || 'Adventure')}`, `DESCRIPTION:${txt(calDetails(adv))}`,
+    calWhere(adv) && `LOCATION:${txt(calWhere(adv))}`, p?.lat != null && `GEO:${p.lat};${p.lon}`,
+    'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${txt('Tomorrow: ' + (adv.title || 'your adventure'))}`, 'TRIGGER:-P1D', 'END:VALARM',
+    'END:VEVENT', 'END:VCALENDAR'].filter(Boolean).map(fold).join('\r\n') + '\r\n';
 }
 
 // ---------- Briefing ----------
@@ -710,6 +746,15 @@ document.addEventListener('click', async e => {
   const keepScroll = () => { const y = window.scrollY; render(); window.scrollTo(0, y); };
 
   switch (act) {
+    case 'cal-add': {
+      // Saving the file hands it to the phone, which offers to add it to the calendar.
+      const url = URL.createObjectURL(new Blob([calendarFile(adv)], { type: 'text/calendar' }));
+      const a = Object.assign(document.createElement('a'), { href: url, download: (adv.title || 'adventure').replace(/[^\w -]+/g, '').trim().replace(/\s+/g, '-') + '.ics' });
+      document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      toast('Open the file to add it to your calendar');
+      return;
+    }
     case 'jump': e.preventDefault(); document.getElementById(el.dataset.to)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return;
     // form
     case 'type': { d.type = el.dataset.type; const m = d.stops.find(s => s.main); if (m && !m._catTouched) m.cat = TYPES[d.type].cat; keepScroll(); return; }
