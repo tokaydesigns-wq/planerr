@@ -141,7 +141,7 @@ function seedState() {
     review: 'Tide pools at low tide were the highlight. The boardwalk gets busy after 2 PM.',
     tips: 'Check the tide chart and go to Natural Bridges at low tide.',
   });
-  return { profile: { name: '', units: defaultUnits(), diet: [], taste: {}, likes: [] }, family: { kids: [] }, adventures: [upcoming, past], seen: {} };
+  return { profile: { name: '', units: defaultUnits(), diet: [], taste: {}, likes: [] }, family: { kids: [] }, adventures: [upcoming, past], seen: { welcome: false } };
 }
 
 function loadState() {
