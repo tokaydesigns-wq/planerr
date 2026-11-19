@@ -157,7 +157,13 @@ function loadState() {
   return seedState();
 }
 let state = loadState();
-function save() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} }
+// Saved trips matter more than the lookup cache: if storage is full, throw the cache away and try once more.
+function save() {
+  const data = JSON.stringify(state);
+  try { localStorage.setItem(STORE, data); return; } catch (e) {}
+  try { localStorage.removeItem('planerr.cache.v1'); if (typeof cacheStore !== 'undefined') cacheStore = {}; } catch (e) {}
+  try { localStorage.setItem(STORE, data); } catch (e) {}
+}
 const advById = id => state.adventures.find(a => a.id === id);
 
 // ---------- planning rules ----------

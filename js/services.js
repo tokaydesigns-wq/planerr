@@ -7,9 +7,9 @@
 
 // Small answer cache for lookups that don't change minute to minute (places, photos, routes), kept in
 // localStorage under its own key so a repeat search near the same town skips the network.
-// Oldest answers are dropped past 150 entries or ~1.5 MB. Every storage call is wrapped, because
+// Oldest answers are dropped past 150 entries or ~0.8 MB. Every storage call is wrapped, because
 // storage can be full or blocked; if it is, lookups just go to the network as before.
-const DAY = 864e5, CACHE_KEY = 'planerr.cache.v1', CACHE_MAX = 150, CACHE_CHARS = 1.5e6;
+const DAY = 864e5, CACHE_KEY = 'planerr.cache.v1', CACHE_MAX = 150, CACHE_CHARS = 0.8e6;
 const cacheTTL = url => {
   if (/open-meteo\.com\/v1\/forecast/.test(url)) return 0;                        // weather: always fresh
   if (/prop=pageviews/.test(url) || /router\.project-osrm\.org/.test(url)) return DAY; // reads and routes: 1 day
