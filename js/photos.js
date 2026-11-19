@@ -170,6 +170,8 @@ function recapText(adv) {
   const stops = adv.stops.map(s => `${s.main ? '⭐' : '•'} ${s.name || 'Stop'}${s.liked === true ? ' 👍' : s.liked === false ? ' 👎' : ''}${s.tip ? ' (' + s.tip + ')' : ''}`);
   if (stops.length) lines.push('', ...stops);
   if (adv.tips) lines.push('', 'Tip for next time: ' + adv.tips);
+  const sp = spendText(adv);
+  if (sp.length) lines.push('', ...sp);
   return lines.join('\n');
 }
 function recapScreen(id) {
@@ -198,6 +200,7 @@ function recapScreen(id) {
     ${list ? '' : '<span class="loading"><span class="spin"></span>Loading photos…</span>'}
     ${adv.stops.map(stop).join('')}
     ${other.length ? `<section class="card recap-stop"><h2>✨ Other moments</h2><div class="album-grid">${other.map(p => `<button class="ph" data-act="ph-open" data-pid="${p.id}" aria-label="Open photo"><img src="${p.thumbURL}" alt="" loading="lazy"></button>`).join('')}</div></section>` : ''}
+    ${spendSummary(adv)}
     ${adv.tips ? `<section class="card"><h2>Tip for next time</h2><p>${esc(adv.tips)}</p></section>` : ''}
   </div>`;
 }

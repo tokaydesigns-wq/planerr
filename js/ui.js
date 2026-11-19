@@ -56,7 +56,7 @@ function render() {
   if (ui.shown !== location.hash) { ui.changed = ui.shown !== undefined; ui.shown = location.hash; $('#app').firstElementChild?.classList.add('enter'); }
   const tab = { new: 'new', edit: 'new', ideas: 'new', idea: 'new', chat: 'home', explore: 'explore', family: 'family', you: 'you' }[view] || 'home';
   $$('#tabbar a').forEach(a => { const on = a.dataset.tab === tab; a.classList.toggle('on', on); if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
-  $$('#app button.chip, #app button.type-opt').forEach(b => { if (!b.hasAttribute('aria-pressed')) b.setAttribute('aria-pressed', b.classList.contains('on')); });
+  $$('#app button.chip:not([role]), #app button.type-opt:not([role])').forEach(b => { if (!b.hasAttribute('aria-pressed')) b.setAttribute('aria-pressed', b.classList.contains('on')); });
   // Tell screen readers the page changed: new title, and focus moves to the screen's heading.
   const h1 = $('#app h1'), name = h1 ? h1.textContent.replace(/[^\p{L}\p{N}\s',.!?&-]/gu, '').trim() : '';
   document.title = view === 'home' || !name ? 'Planerr' : `${name} · Planerr`;
@@ -542,6 +542,8 @@ function detail(id) {
     ${nearbyCard(adv)}
     ${familyCard(adv)}
     ${gearCard(adv)}
+    ${adv.status === 'done' ? spendSummary(adv) : ''}
+    ${adv.status !== 'planned' ? spendCard(adv) : ''}
     ${adv.notes ? `<section class="card"><h2>Notes</h2><p>${esc(adv.notes)}</p></section>` : ''}
     ${researchCard(adv)}
     <div class="sticky-cta">${cta}</div>
@@ -661,6 +663,7 @@ function live(id) {
     <section class="card"><h2>Stops</h2>
       ${adv.stops.map((s, j) => `<label class="check ${s.done ? 'done' : ''}"><input type="checkbox" data-act="stop-toggle" data-sid="${s.id}" ${s.done ? 'checked' : ''}><span>${esc(s.name)}<small>${fmtTime(sch.rows[j].arrive)} · ${fmtDur(s.dur)}</small></span></label>`).join('')}
     </section>
+    ${spendCard(adv)}
     <a class="btn dark block" href="#/rate/${adv.id}" style="min-height:52px">Finish & rate the day</a>
   </div>`;
 }
@@ -806,6 +809,7 @@ function you() {
       <p class="small"><b>${backupAge()}</b></p>
       <div class="row wrap"><button class="btn sm primary" data-act="export">Back up now</button><label class="btn sm">Restore from backup<input type="file" id="import" accept="application/json,.json" hidden></label>${state.adventures.some(a => a.example) ? '<button class="btn sm" data-act="clear-examples">Remove examples</button>' : ''}</div>
     </section>
+    <p class="note"><a href="#/you" data-act="welcome-again">Show the intro again</a></p>
     <p class="note">Data: Open-Meteo, OpenStreetMap contributors, OSRM, Photon by Komoot, Wikipedia.</p>
   </div>`;
 }
@@ -906,7 +910,7 @@ document.addEventListener('click', async e => {
     }
     case 'again': {
       const c = draftFrom(adv);
-      Object.assign(c, { id: uid(), status: 'planned', rating: 0, review: '', date: nextSaturday(), research: {}, example: false, createdAt: Date.now() });
+      Object.assign(c, { id: uid(), status: 'planned', rating: 0, review: '', date: nextSaturday(), research: {}, spent: [], example: false, createdAt: Date.now() });
       c.stops.forEach(s => { s.id = uid(); s.done = false; s.liked = null; });
       c.packing.forEach(p => { p.done = false; });
       c._for = 'new'; ui.draft = c; ui.keepDraft = true; go('new'); return;
