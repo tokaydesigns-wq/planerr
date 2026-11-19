@@ -264,6 +264,20 @@ function wxAt(adv, min) {
   return { temp: h.temperature_2m[i], rain: h.precipitation_probability[i] ?? 0, code: h.weather_code[i] };
 }
 const sunsetMin = adv => { const w = wxDay(adv); return w ? toMin(w.daily.sunset[0].slice(11, 16)) : null; };
+// A wet day: 60%+ chance of rain, or a heavy rain / snow / thunder forecast. No forecast (too far out) = never wet.
+const WET_CODES = new Set([65, 66, 67, 73, 75, 81, 82, 85, 86, 95, 96, 99]);
+function rainWet(adv) {
+  const d = wxDay(adv)?.daily;
+  return !!d && ((d.precipitation_probability_max?.[0] ?? 0) >= 60 || WET_CODES.has(d.weather_code?.[0]));
+}
+// Outdoor stops a rainy day would spoil. Museums and the like are left out even when filed as sightseeing.
+function rainStops(adv) {
+  return adv.stops.filter(s => {
+    if (!OUTDOOR.has(s.cat) || !s.place) return false;
+    const t = adv.research?.details?.[s.place.osm]?.tourism;
+    return !TICKET_TOURISM.has(t) && !/museum|gallery|aquarium|library|cinema|theat/i.test(s.name);
+  });
+}
 const tempHot = () => imperial() ? 85 : 29;
 const tempCold = () => imperial() ? 45 : 7;
 
@@ -398,6 +412,7 @@ function alertsFor(adv) {
     if (ss && lastOutdoor > ss) out.push({ lv: 'warn', ic: '🌙', t: `You'd still be outdoors after sunset (${fmtTime(ss)}). Bring a headlamp or move that stop earlier.` });
     if (w.daily.temperature_2m_max[0] >= tempHot()) out.push({ lv: 'warn', ic: '🥵', t: `Hot day, up to ${Math.round(w.daily.temperature_2m_max[0])}°. Bring extra water and plan shade breaks.` });
   }
+  if (w && adv.status === 'planned' && rainWet(adv) && rainStops(adv).length) out.push({ lv: 'warn', ic: '☔', t: 'Wet forecast. See <a href="#rain" data-act="jump" data-to="rain">Rain plan B</a> for indoor swaps.' });
   const b = budget(adv);
   if (adv.budget && b.left < 0) out.push({ lv: 'warn', ic: '💸', t: `Estimated spend is ${money(b.total)}, which is ${money(-b.left)} over your ${money(adv.budget)} budget.` });
   adv.stops.forEach(s => { const t = ticketInfo(adv, s); if (t) out.push({ lv: 'info', ic: '🎟️', t: `<b>${esc(s.name)}</b> may need tickets bought in advance. See Tickets below.` }); });
