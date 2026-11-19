@@ -2,7 +2,7 @@
 // Screens, routing and interaction. Each screen is a function that returns HTML for #app;
 // clicks are handled in one delegated listener keyed by data-act.
 
-const ui = { draft: null, results: {}, timers: {}, busy: {}, steps: {}, community: null, communityErr: null, exploreType: 'all', exploreQ: '', rating: 0, foodFilter: 'match' };
+const ui = { draft: null, results: {}, timers: {}, busy: {}, rainBusy: {}, rainFailed: {}, steps: {}, community: null, communityErr: null, exploreType: 'all', exploreQ: '', rating: 0, foodFilter: 'match' };
 const svgIcon = d => `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const I = { back: svgIcon('<path d="M15 5l-7 7 7 7"/>'), edit: svgIcon('<path d="M4 20h4L19 9l-4-4L4 16z"/>') };
 
@@ -55,6 +55,8 @@ window.addEventListener('hashchange', () => { if (!ui.keepDraft) ui.draft = null
 function afterRender(view, id) {
   const adv = id && advById(id);
   if ((view === 'a' || view === 'brief') && adv && !adv.research?.at && !ui.busy[id]) runResearch(adv);
+  if (view === 'a' && adv && adv.status === 'planned' && adv.research?.at && !ui.busy[id] && rainWet(adv) && rainStops(adv).length
+    && adv.research.rain?.key !== rainKey(adv) && !ui.rainBusy[id] && !ui.rainFailed[id]) loadRainSpots(adv);
   if (view === 'explore' && !ui.community && !ui.loadingCommunity) loadCommunity();
   if (view === 'idea') setupIdeaDetail(id);
   if (view === 'chat') setupChat();
@@ -62,7 +64,7 @@ function afterRender(view, id) {
 }
 
 async function runResearch(adv) {
-  ui.busy[adv.id] = true; ui.steps[adv.id] = {};
+  ui.busy[adv.id] = true; ui.steps[adv.id] = {}; delete ui.rainFailed[adv.id];
   const rerender = () => { const r = parseRoute(); if (r.id === adv.id) render(); };
   rerender();
   await research(adv, (name, st) => { ui.steps[adv.id][name] = st; });
@@ -371,6 +373,44 @@ function foodCard(adv) {
   </section>`;
 }
 
+// Rain plan B: shown only for a planned trip with a wet forecast and outdoor stops. Indoor spots load on demand (see loadRainSpots).
+function rainCard(adv) {
+  const outs = rainStops(adv);
+  if (adv.status !== 'planned' || !rainWet(adv) || !outs.length) return '';
+  const R = adv.research.rain, d = wxDay(adv).daily;
+  const head = `<div class="card-head"><h2>☔ Rain plan B</h2><span class="pill warn">${d.precipitation_probability_max?.[0] ?? 0}% rain · ${esc(wmo(d.weather_code[0])[1])}</span></div>`;
+  if (!R || R.key !== rainKey(adv)) return `<section class="card" id="rain">${head}<p class="muted">${ui.rainFailed[adv.id] ? 'Couldn’t look up indoor places right now. Try Refresh research below.' : 'Looking for indoor places nearby…'}</p></section>`;
+  const planned = new Set(adv.stops.map(s => s.place?.osm));
+  const items = R.items.filter(f => !planned.has(f.id) && !reportedClosed(f) && closedInfo({ ...f.ctags, opening_hours: f.hours }, adv.date)?.status !== 'closed' && hoursOn(f.hours, adv.date).status !== 'closed')
+    .map(f => { const o = outs.map(s => ({ s, km: haversine(s.place, f) })).sort((a, b) => a.km - b.km)[0]; return { ...f, stop: o.s, km: o.km }; })
+    .sort((a, b) => a.km - b.km);
+  // Mix it up: at most two of any one kind, nearest first.
+  const per = {}, picks = items.filter(f => (per[f.kind] = (per[f.kind] || 0) + 1) <= 2).slice(0, 6);
+  const row = f => {
+    const [label, e] = RAIN_KINDS[f.kind], h = f.hours ? hoursOn(f.hours, adv.date) : null;
+    return `<div class="li" style="grid-template-columns:44px 1fr">
+      <div class="ic">${e}</div>
+      <div class="main"><b>${esc(f.name)}</b>
+        <span class="small muted">${label} · ${dist(f.km)} from ${esc(f.stop.name)}${h && h.status === 'open' ? ' · Open ' + esc(h.text) : h?.status === 'unknown' ? ' · Hours vary' : ''}</span>
+        <span class="row wrap" style="gap:4px"><button class="btn sm" data-act="rain-swap" data-rid="${f.id}" data-sid="${f.stop.id}">Swap in for ${esc(f.stop.name.length > 22 ? f.stop.name.slice(0, 21) + '…' : f.stop.name)}</button>${reviewsLink(f.name, f)}</span>
+      </div></div>`;
+  };
+  return `<section class="card" id="rain">${head}
+    <p class="small muted">Rain is likely, so here are indoor places near your outdoor stops. Swapping replaces that stop and updates the drive times.</p>
+    ${picks.length ? `<div class="list">${picks.map(row).join('')}</div>` : '<p class="muted">No indoor places found near your stops. A café or museum in the nearest town is a good bet.</p>'}
+    <p class="note">Listings come from OpenStreetMap, so double-check hours before you go.</p>
+  </section>`;
+}
+
+// Fetch the indoor spots the first time a wet plan is opened (and again if its outdoor stops change).
+async function loadRainSpots(adv) {
+  const id = adv.id;
+  ui.rainBusy[id] = true; delete ui.rainFailed[id];
+  try { await findRainSpots(adv); save(); } catch (e) { ui.rainFailed[id] = true; }
+  ui.rainBusy[id] = false;
+  const r = parseRoute(); if (r.view === 'a' && r.id === id) render();
+}
+
 function ticketsCard(adv) {
   const items = adv.stops.map(s => [s, ticketInfo(adv, s)]).filter(([, t]) => t);
   if (!items.length) return '';
@@ -472,12 +512,13 @@ function detail(id) {
     ${alerts.length ? `<div class="alerts">${alerts.map(a => `<div class="alert ${a.lv}"><span class="ic">${a.ic}</span><span>${a.t}</span></div>`).join('')}</div>` : (ui.busy[adv.id] ? '' : adv.research?.at ? `<div class="alert good"><span class="ic">✓</span><span>No problems found with this plan.</span></div>` : '')}
 
     <nav class="jump scroll-x" aria-label="Sections">
-      ${[['plan', 'Plan'], isHikeAdv(adv) && ['trails', 'Trails'], (adv.status !== 'planned' || adv.photoCount) && ['photos', 'Photos'], ['weather', 'Weather'], ['food', 'Food'], adv.stops.some(s => ticketInfo(adv, s)) && ['tickets', 'Tickets'], (adv.research?.nearby || []).length && ['explore', 'Nearby'], adv.familyMode && state.family.kids.length && ['family', 'Family'], ['gear', 'Gear']].filter(Boolean).map(([k, l]) => `<a class="chip" href="#${k}" data-act="jump" data-to="${k}">${l}</a>`).join('')}
+      ${[['plan', 'Plan'], isHikeAdv(adv) && ['trails', 'Trails'], (adv.status !== 'planned' || adv.photoCount) && ['photos', 'Photos'], ['weather', 'Weather'], adv.status === 'planned' && rainWet(adv) && rainStops(adv).length && ['rain', 'Rain plan'], ['food', 'Food'], adv.stops.some(s => ticketInfo(adv, s)) && ['tickets', 'Tickets'], (adv.research?.nearby || []).length && ['explore', 'Nearby'], adv.familyMode && state.family.kids.length && ['family', 'Family'], ['gear', 'Gear']].filter(Boolean).map(([k, l]) => `<a class="chip" href="#${k}" data-act="jump" data-to="${k}">${l}</a>`).join('')}
     </nav>
     ${timelineCard(adv)}
     ${trailsCard(adv)}
     ${adv.status !== 'planned' || adv.photoCount ? photosCard(adv, adv.status === 'done' ? '' : 'Add photos as you go. File each one under the stop where you took it.') : ''}
     ${weatherCard(adv)}
+    ${rainCard(adv)}
     ${foodCard(adv)}
     ${ticketsCard(adv)}
     ${nearbyCard(adv)}
@@ -820,6 +861,17 @@ document.addEventListener('click', async e => {
       bumpTaste(f.cuisine.length ? f.cuisine : ['amenity:' + f.amenity], 2);
       adv.research.details = { ...(adv.research.details || {}), [f.id]: f.hours ? { opening_hours: f.hours } : {} };
       save(); keepScroll(); toast(`Added ${f.name} to your plan`);
+      try { await updateRoute(adv); save(); keepScroll(); } catch (err) {}
+      return;
+    }
+    case 'rain-swap': {
+      const f = adv.research.rain.items.find(x => x.id === el.dataset.rid), i = adv.stops.findIndex(x => x.id === el.dataset.sid);
+      if (!f || i < 0) return;
+      const old = adv.stops[i], [label] = RAIN_KINDS[f.kind], cafe = f.kind === 'cafe' || f.kind === 'library';
+      // The new stop takes the old one's place in the order.
+      adv.stops[i] = newStop({ name: f.name, cat: cafe ? 'rest' : 'fun', dur: cafe ? 45 : f.kind === 'museum' || f.kind === 'aquarium' ? 120 : 90, main: old.main, place: { label: f.name, sub: label, lat: f.lat, lon: f.lon, osm: f.id } });
+      adv.research.details = { ...(adv.research.details || {}), [f.id]: f.hours ? { opening_hours: f.hours } : {} };
+      refreshPacking(adv); save(); keepScroll(); toast(`Swapped ${old.name} for ${f.name}`);
       try { await updateRoute(adv); save(); keepScroll(); } catch (err) {}
       return;
     }

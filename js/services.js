@@ -280,6 +280,33 @@ async function updateRoute(adv) {
   adv.research.route = r ? { ...r, key, at: Date.now() } : null;
 }
 
+// Rain plan B: indoor places (museums, cafés, bowling...) within about 6 km of each outdoor stop, from Nominatim.
+// Looked up once per set of outdoor stops and kept in adv.research.rain.
+const RAIN_KINDS = { museum: ['Museum', '🏛️'], gallery: ['Art gallery', '🖼️'], aquarium: ['Aquarium', '🐠'], library: ['Library', '📚'],
+  cafe: ['Café', '☕'], bowling_alley: ['Bowling', '🎳'], cinema: ['Cinema', '🎬'], climbing: ['Indoor climbing', '🧗'] };
+const rainKey = adv => rainStops(adv).slice(0, 2).map(s => s.id + ':' + (+s.place.lat).toFixed(3) + ',' + (+s.place.lon).toFixed(3)).join('|');
+async function findRainSpots(adv) {
+  const R = adv.research = adv.research || {};
+  const key = rainKey(adv), stops = rainStops(adv).slice(0, 2), items = [], seen = new Set(), km = 6;
+  for (const s of stops) {
+    const p = s.place, dLat = km / 111, dLon = dLat / Math.cos(p.lat * Math.PI / 180);
+    const box = [p.lon - dLon, p.lat + dLat, p.lon + dLon, p.lat - dLat].map(n => n.toFixed(5)).join(',');
+    for (const [q, kind] of [['museum'], ['aquarium'], ['bowling alley', 'bowling_alley'], ['cinema'], ['library'], ['cafe'], ['climbing gym', 'climbing']]) {
+      let rows = [];
+      try { rows = await nominatim({ q, viewbox: box, bounded: 1, limit: 12, extratags: 1 }); } catch (e) { continue; }
+      for (const r of rows) {
+        const id = (r.osm_type || 'n')[0].toUpperCase() + r.osm_id, t = r.extratags || {};
+        let k = RAIN_KINDS[r.type] ? r.type : /climb/.test(q) && /sports_centre|climbing/.test(r.type) ? 'climbing' : null;
+        if (!r.name || !k || seen.has(id) || t.access === 'private' || t.indoor === 'no') continue;
+        if (k === 'climbing' && !/climb|boulder/i.test(r.name + (t.sport || ''))) continue;
+        seen.add(id);
+        items.push({ id, name: r.name, kind: k, lat: +r.lat, lon: +r.lon, hours: t.opening_hours || null, ctags: Object.fromEntries(Object.entries(t).filter(([x]) => /^(seasonal|note|description|fixme|(disused|abandoned|was):.*)$/.test(x))) });
+      }
+    }
+  }
+  R.rain = { key, at: Date.now(), items };
+}
+
 // The research pass: run every lookup, keep whatever succeeds, note what failed.
 async function research(adv, onStep = () => {}) {
   const R = adv.research = adv.research || {};
