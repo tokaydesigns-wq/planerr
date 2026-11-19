@@ -101,6 +101,7 @@ function home() {
     <header class="greet"><span class="eyebrow">${fmtDate(todayStr(), { weekday: 'long', month: 'long', day: 'numeric' })}</span><h1>${hi}${name ? ', ' + esc(name) : ''}.</h1></header>
     ${homeBanner(next ? (next.status === 'active' ? 'Adventure in progress! Let’s roll.' : `${whenLabel(next)}: ${esc(next.title)}!`) : 'Where are we going today?')}
     ${chatStarter()}
+    ${backupNudge()}
     <a class="idea-cta" href="#/ideas"><span class="e">✨</span><span><b>Or pick settings yourself</b><small>Choose drive time, kinds of day and food. Planerr builds 3 plans.</small></span><span class="go">→</span></a>
     ${next ? `
       <a class="hero tall" href="#/a/${next.id}" style="text-decoration:none">
@@ -488,6 +489,21 @@ function detail(id) {
   </div>`;
 }
 
+// ---------- Backups ----------
+const BACKUP_EVERY = 30 * 864e5;
+function backupAge() {
+  if (!state.backedUpAt) return 'Not backed up yet.';
+  const d = Math.floor((Date.now() - state.backedUpAt) / 864e5);
+  return `Last backup: ${d === 0 ? 'today' : d === 1 ? 'yesterday' : d + ' days ago'}.`;
+}
+// A gentle Home reminder once you have real trips and haven't backed up for a month. "Later" hides it for a month.
+function backupNudge() {
+  const mine = state.adventures.filter(a => !a.example).length;
+  const last = Math.max(state.backedUpAt || 0, state.backupNudgeAt || 0);
+  if (mine < 2 || Date.now() - last < BACKUP_EVERY) return '';
+  return `<div class="alert info backup-nudge"><span class="ic">💾</span><span>Your ${mine} trips are only saved on this phone. <a href="#/you" data-act="backup-go">Back them up</a></span><button class="btn sm ghost" data-act="backup-later">Later</button></div>`;
+}
+
 // ---------- Calendar ----------
 // The trip as calendar times. Floating local time (no time zone), so it lands at the same clock time wherever the phone is.
 function calTimes(adv) {
@@ -726,9 +742,10 @@ function you() {
       <p class="small">${Community.ready ? '✓ Connected. You can share adventures to Explore when you rate them.' : 'Not connected. Explore shows examples only. See README → “Turn on the community feed”.'}</p>
     </section>
     <section class="card">
-      <h2>Your data</h2>
-      <p class="small muted">Everything is saved on this device. Back it up or move it to another phone with a file. It includes your trip photos.</p>
-      <div class="row wrap"><button class="btn sm" data-act="export">Export backup</button><label class="btn sm">Import backup<input type="file" id="import" accept="application/json" hidden></label>${state.adventures.some(a => a.example) ? '<button class="btn sm" data-act="clear-examples">Remove examples</button>' : ''}</div>
+      <h2 id="data">Your data</h2>
+      <p class="small muted">Everything is saved on this phone only. A backup file keeps your trips, photos and settings safe, and moves them to a new phone. Save it somewhere off the phone, like iCloud Drive, Google Drive or email.</p>
+      <p class="small"><b>${backupAge()}</b></p>
+      <div class="row wrap"><button class="btn sm primary" data-act="export">Back up now</button><label class="btn sm">Restore from backup<input type="file" id="import" accept="application/json,.json" hidden></label>${state.adventures.some(a => a.example) ? '<button class="btn sm" data-act="clear-examples">Remove examples</button>' : ''}</div>
     </section>
     <p class="note">Data: Open-Meteo, OpenStreetMap contributors, OSRM, Photon by Komoot, Wikipedia.</p>
   </div>`;
@@ -860,6 +877,13 @@ document.addEventListener('click', async e => {
       const blob = new Blob([JSON.stringify({ ...state, photos: await exportPhotos() }, null, 2)], { type: 'application/json' });
       const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `planerr-backup-${todayStr()}.json` });
       document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      state.backedUpAt = Date.now(); save(); keepScroll(); toast('Backup saved. Keep the file somewhere off this phone.');
+      return;
+    }
+    case 'backup-later': state.backupNudgeAt = Date.now(); save(); keepScroll(); return;
+    case 'backup-go': {
+      e.preventDefault(); go('you');
+      setTimeout(() => document.getElementById('data')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
       return;
     }
   }
@@ -936,9 +960,13 @@ document.addEventListener('change', async e => {
       const ids = new Set(state.adventures.map(a => a.id));
       data.adventures.forEach(a => { if (!ids.has(a.id)) state.adventures.push(a); });
       if (data.family?.kids?.length && !state.family.kids.length) state.family = data.family;
+      // Settings and food likes come back too, unless this phone already has its own.
+      const p = state.profile, fresh = !p.name && !Object.keys(p.taste || {}).length && !p.diet.length;
+      if (data.profile && fresh) state.profile = { ...p, ...data.profile };
+      state.reportedPosts = { ...data.reportedPosts, ...state.reportedPosts };
       save();
       const n = await importPhotos(data.photos);
-      render(); toast(`Imported ${data.adventures.length} adventures${n ? ` and ${n} photo${n === 1 ? '' : 's'}` : ''}`);
+      render(); toast(`Imported ${data.adventures.length} adventure${data.adventures.length === 1 ? '' : 's'}${n ? ` and ${n} photo${n === 1 ? '' : 's'}` : ''}`);
     } catch (err) { toast('That file isn’t a Planerr backup.'); }
     el.value = '';
   }
