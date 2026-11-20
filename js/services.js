@@ -413,7 +413,21 @@ const Community = {
     const r = await fetch(`${base}/rest/v1/adventure_reports`, { method: 'POST', headers: { ...this.headers(), Prefer: 'return=minimal' }, body: JSON.stringify({ adventure_id: id, reporter: state.reporterId }) });
     if (!r.ok && r.status !== 409) throw new Error(`HTTP ${r.status}`);
   },
+  // Anonymous visitor count: one row per phone per day (see "Visitor count" in supabase.sql).
+  // The id is random and separate from the reporting id, so visits can't be tied to reports.
+  // Skipped when turned off on the You screen, when testing on this computer, and after today's visit is sent.
+  async visit() {
+    const today = todayStr(), local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+    if (!this.ready || local || state.profile.countVisits === false || state.visitDay === today) return;
+    state.visitorId = state.visitorId || uid() + uid(); state.visitDay = today; save();
+    const installed = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    const base = window.PLANERR_CONFIG.supabaseUrl.replace(/\/$/, '');
+    try {
+      await fetch(`${base}/rest/v1/visits`, { method: 'POST', headers: { ...this.headers(), Prefer: 'return=minimal' }, body: JSON.stringify({ device: state.visitorId, day: today, installed }) });
+    } catch (e) { /* offline: try again tomorrow */ }
+  },
 };
+window.addEventListener('load', () => setTimeout(() => Community.visit(), 3000));
 
 // Built-in examples so Explore isn't empty before anyone shares. Marked as examples in the UI.
 const EXAMPLE_COMMUNITY = [

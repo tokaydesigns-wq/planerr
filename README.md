@@ -96,6 +96,48 @@ delete from public.adventures where id = 'PASTE-POST-ID-HERE';
 
 Tips: use a fresh **New query** each time so you only run the one you meant to. Supabase may show a warning for the delete query, which is normal. The same queries are saved (commented out) at the bottom of `supabase.sql`.
 
+## Checking your visitor numbers
+
+Planerr counts visitors anonymously, so you can see whether people use it and come back. Once a day, each phone sends a random number (not a name, location or trip), the date, and whether Planerr is installed on its Home Screen. People can turn this off on the You screen. Your own testing on `localhost` isn't counted.
+
+**One-time setup:** in Supabase, open **SQL Editor → New query**, paste the whole `supabase.sql` file, and click **Run**. It's safe to run again; it only adds what's missing.
+
+**See the numbers:** open **SQL Editor → New query**, paste one of these, and click **Run**. They only read; nothing changes.
+
+The big picture:
+
+```sql
+select
+  count(distinct device)                                                     as people_ever,
+  count(distinct device) filter (where day >= current_date - 6)              as people_last_7_days,
+  (select count(*) from (select device from public.visits group by device having count(*) >= 2) r) as came_back_at_least_once,
+  (select count(*) from (select device from public.visits group by device having count(*) >= 3) r) as used_it_3_plus_days,
+  count(distinct device) filter (where installed)                            as installed_on_home_screen
+from public.visits;
+```
+
+People per day, last 30 days:
+
+```sql
+select day, count(*) as people, count(*) filter (where installed) as installed
+from public.visits
+where day >= current_date - 29
+group by day order by day desc;
+```
+
+Do new people come back? (Each week: how many were new, and how many of them came back on a later day.)
+
+```sql
+with firsts as (select device, min(day) as first_day from public.visits group by device)
+select date_trunc('week', f.first_day)::date as week_started,
+       count(*) as new_people,
+       count(*) filter (where exists (select 1 from public.visits v where v.device = f.device and v.day > f.first_day)) as came_back
+from firsts f
+group by 1 order by 1 desc;
+```
+
+**How to read it:** "came back" is the number that matters. If a good share of new people come back on another day, Planerr is useful to them. One person on two phones (or after clearing the browser) counts as two.
+
 ## Limits to know
 
 - **Opening hours** come from OpenStreetMap volunteers. They're good for big attractions and patchier for small businesses, so confirm anything important on the official site.

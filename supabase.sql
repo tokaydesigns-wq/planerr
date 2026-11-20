@@ -95,3 +95,48 @@ commit;
    Replace PASTE-POST-ID-HERE with an id from query 1.
 delete from public.adventures where id = 'PASTE-POST-ID-HERE';
 */
+
+-- ---------- Visitor count (added Nov 2026) ----------
+-- Each phone sends one row a day: a random id made on the phone (not linked to a name, account, location or
+-- to its reports), the date, and whether Planerr is installed on the Home Screen. Phones can add rows but
+-- nobody can read them through the app; only you can, in the dashboard. Safe to run again.
+create table if not exists public.visits (
+  device    text not null check (char_length(device) between 8 and 40),
+  day       date not null,
+  installed boolean not null default false,
+  primary key (device, day)
+);
+alter table public.visits enable row level security;
+drop policy if exists "Anyone can log a visit" on public.visits;
+create policy "Anyone can log a visit" on public.visits
+  for insert with check (day between current_date - 1 and current_date + 1);
+
+-- ---------- Owner tools: visitor numbers ----------
+-- Copy one query (without the /* and */ lines) into a NEW query tab in the SQL Editor and click Run.
+-- The README ("Checking your visitor numbers") has the same queries with step-by-step clicks.
+
+/* A. The big picture: how many people, how many came back, how many installed it.
+select
+  count(distinct device)                                                     as people_ever,
+  count(distinct device) filter (where day >= current_date - 6)              as people_last_7_days,
+  (select count(*) from (select device from public.visits group by device having count(*) >= 2) r) as came_back_at_least_once,
+  (select count(*) from (select device from public.visits group by device having count(*) >= 3) r) as used_it_3_plus_days,
+  count(distinct device) filter (where installed)                            as installed_on_home_screen
+from public.visits;
+*/
+
+/* B. People per day, last 30 days (newest first).
+select day, count(*) as people, count(*) filter (where installed) as installed
+from public.visits
+where day >= current_date - 29
+group by day order by day desc;
+*/
+
+/* C. Do new people come back? For each week, how many were new, and how many of them returned on a later day.
+with firsts as (select device, min(day) as first_day from public.visits group by device)
+select date_trunc('week', f.first_day)::date as week_started,
+       count(*) as new_people,
+       count(*) filter (where exists (select 1 from public.visits v where v.device = f.device and v.day > f.first_day)) as came_back
+from firsts f
+group by 1 order by 1 desc;
+*/
