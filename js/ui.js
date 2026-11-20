@@ -809,6 +809,11 @@ function you() {
       <p class="small"><b>${backupAge()}</b></p>
       <div class="row wrap"><button class="btn sm primary" data-act="export">Back up now</button><label class="btn sm">Restore from backup<input type="file" id="import" accept="application/json,.json" hidden></label>${state.adventures.some(a => a.example) ? '<button class="btn sm" data-act="clear-examples">Remove examples</button>' : ''}</div>
     </section>
+    ${Community.ready ? `<section class="card">
+      <h2>Visitor count</h2>
+      <p class="small muted">${state.profile.countVisits === false ? 'Off. This phone isn’t counted.' : 'Once a day, Planerr sends an anonymous “someone used the app today”, so its maker can see how many people use it. It’s a random number, with no name, location or trip details.'}</p>
+      <button class="btn sm" data-act="count-visits" style="justify-self:start">${state.profile.countVisits === false ? 'Turn back on' : 'Turn off'}</button>
+    </section>` : ''}
     <p class="note"><a href="#/you" data-act="welcome-again">Show the intro again</a></p>
     <p class="note">Data: Open-Meteo, OpenStreetMap contributors, OSRM, Photon by Komoot, Wikipedia.</p>
   </div>`;
@@ -946,6 +951,7 @@ document.addEventListener('click', async e => {
     case 'kid-del': state.family.kids = state.family.kids.filter(k => k.id !== el.dataset.kid); save(); keepScroll(); return;
     case 'fam-plan': { const c = newAdventure({ type: el.dataset.type, familyMode: true }); c._for = 'new'; ui.draft = c; ui.keepDraft = true; go('new'); return; }
     // you
+    case 'count-visits': state.profile.countVisits = state.profile.countVisits === false; save(); keepScroll(); toast(state.profile.countVisits ? 'Visit count on' : 'Visit count off'); return;
     case 'units': state.profile.units = el.dataset.u; staleCheck(); save(); keepScroll(); return;
     case 'diet': { const k = el.dataset.d, set = new Set(state.profile.diet); set.has(k) ? set.delete(k) : set.add(k); state.profile.diet = [...set]; save(); keepScroll(); return; }
     case 'taste-reset': if (confirm('Reset your taste profile?')) { state.profile.taste = {}; state.profile.votes = {}; save(); keepScroll(); } return;
