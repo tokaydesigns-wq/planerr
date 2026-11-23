@@ -9,6 +9,7 @@ A phone-first web app for planning day-trip adventures. Add it to your home scre
 - **Recommended trails** for any hike: named trails near the hike stop with length, climb, walk time, difficulty, surface and dog rules, plus directions to the start, Google reviews and a trail map. **Use this trail** adds it to the plan and sets the hike time. Trail data comes from OpenStreetMap (Photon and Nominatim) and elevations from Open-Meteo.
 - **Your photos**: after a trip (or during it, from live mode), add your own pictures and file each one under the stop where you took it, so every attraction gets its own album. Pick a cover photo for the trip. Photos are stored on the phone only (IndexedDB) and never uploaded.
 - **Trip ideas**: enter your starting point, the longest drive you want each way, the date and times, the kinds of day you're into, the food you like, a budget and whether the kids are coming. Planerr finds well-known real places within that drive (Wikidata), checks the actual drive time and that day's weather for each, picks restaurants that match your taste, adds sights nearby, and builds **3 different day plans**. Tap **Save this plan**, or **Show me 3 different plans** for more.
+- **Want to go**: tap 🤍 on a trip idea or an Explore post to save it for later. Saved places are listed on Home, and **Plan it** opens a new plan with the stops filled in.
 - **Plan an adventure**: type of day, date, leave/back-by times, starting point, main destination, stops along the way, budget, people, and kids.
 - **Research on its own** when you save a plan:
   - drive time and distance for every leg (OSRM / OpenStreetMap)
@@ -174,6 +175,7 @@ You can also browse them in **Table Editor → feedback**.
 - `js/services.js`: live data sources and the research pass
 - `js/ui.js`: screens and interactions
 - `js/ideas.js`: the trip idea generator
+- `js/wishlist.js`: the Want to go list
 - `sw.js`, `manifest.webmanifest`, `icons/`: install and offline support
 - `supabase.sql`, `config.js`: community feed
 - `v1/index.html`: the original desktop planner

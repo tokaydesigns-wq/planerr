@@ -139,6 +139,7 @@ function home() {
       <div class="hero flat">${sceneSVG('hike')}<div class="hero-body"><h2>Where to next?</h2><p style="color:#fff">Plan a day trip and Planerr checks the weather, hours, food and drive time for you.</p></div></div>
       <a class="btn primary block" href="#/new">Plan an adventure</a>`}
     ${open.length > 1 ? `<section class="stack"><div class="section-title"><h2>Coming up</h2></div><div class="adv-list">${open.slice(1).map(advCard).join('')}</div></section>` : ''}
+    ${wishlistHome()}
     <section class="stack">
       <div class="section-title"><h2>Past adventures</h2><span class="muted small">${past.length}</span></div>
       ${past.length ? `<div class="adv-list">${past.map(advCard).join('')}</div>` : `<div class="empty">${pipNote('<span>Finished adventures show up here with your rating.</span>', 'sleepy')}</div>`}
@@ -721,6 +722,7 @@ function explore(id) {
         <div class="list">${stops.map(s => `<div class="li" style="grid-template-columns:44px 1fr"><div class="ic">${CATS[s.kind]?.e || '📍'}</div><div class="main"><b>${esc(s.name)}</b>${s.tip ? `<span class="small muted">${esc(s.tip)}</span>` : ''}${s.liked === false ? '<span class="pill warn">Would skip</span>' : ''}</div></div>`).join('')}</div>
       </section>
       <button class="btn primary block" data-act="copy-community" data-cid="${esc(String(a.id))}" style="min-height:54px">Plan this adventure</button>
+      ${wishBtn('post:' + a.id, 'wish-post', `data-cid="${esc(String(a.id))}"`, true)}
       ${a.example ? '' : `<button class="btn sm report-btn" data-act="report-post" data-cid="${esc(String(a.id))}">🚩 Report this post</button>`}
     </div>`;
   }
@@ -1069,6 +1071,7 @@ document.addEventListener('change', async e => {
       const p = state.profile, fresh = !p.name && !Object.keys(p.taste || {}).length && !p.diet.length;
       if (data.profile && fresh) state.profile = { ...p, ...data.profile };
       state.reportedPosts = { ...data.reportedPosts, ...state.reportedPosts };
+      (Array.isArray(data.wishlist) ? data.wishlist : []).forEach(w => { if (w?.key && !isWished(w.key)) state.wishlist.push(w); });
       save();
       const n = await importPhotos(data.photos);
       render(); toast(`Imported ${data.adventures.length} adventure${data.adventures.length === 1 ? '' : 's'}${n ? ` and ${n} photo${n === 1 ? '' : 's'}` : ''}`);

@@ -385,7 +385,8 @@ function ideaCard(p, i) {
       ${p.adv.stops.some(s => s.cat === 'food' && !s.place) ? '<p class="small muted">No restaurants are mapped right next to this spot, so lunch is a placeholder. Save the plan and it searches along your whole route for places that match your taste.</p>' : ''}
       <div class="row wrap small"><span>Est. <b>${money(p.cost)}</b>${p.overBudget ? ` <span class="pill warn">over your ${money(a.budget)}</span>` : ` <span class="pill good">within budget</span>`}</span></div>
       <div class="row"><a class="btn" style="flex:1" href="#/idea/${i}">See photos & details</a>
-      ${p.saved ? `<a class="btn dark" style="flex:1" href="#/a/${a.id}">Saved · Open</a>` : `<button class="btn primary" style="flex:1" data-act="idea-save" data-i="${i}">Save this plan</button>`}</div>
+      ${p.saved ? `<a class="btn dark" style="flex:1" href="#/a/${a.id}">Saved · Open</a>` : `<button class="btn primary" style="flex:1" data-act="idea-save" data-i="${i}">Save this plan</button>`}
+      ${wishBtn(ideaWish(p).key, 'wish-idea', `data-i="${i}"`)}</div>
     </div>
   </article>`;
 }
@@ -475,7 +476,7 @@ function ideaDetail(i) {
   const slides = p.gallery || (a.research.photo?.img ? [{ img: a.research.photo.img, caption: main.name, credit: 'Wikipedia', page: a.research.photo.url }] : []);
   const stopsTotal = a.stops.reduce((t, s) => t + s.cost, 0), fuel = p.fuel ?? Math.max(0, p.cost - stopsTotal);
   return `<div class="screen">
-    <div class="topbar"><a class="icon-btn" href="#/ideas" aria-label="Back to ideas">${I.back}</a><h1 style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Plan ${+i + 1}</h1><span class="pill line">${TYPES[a.type].e} ${TYPES[a.type].label}</span></div>
+    <div class="topbar"><a class="icon-btn" href="#/ideas" aria-label="Back to ideas">${I.back}</a><h1 style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Plan ${+i + 1}</h1><span class="pill line">${TYPES[a.type].e} ${TYPES[a.type].label}</span>${wishBtn(ideaWish(p).key, 'wish-idea', `data-i="${i}"`)}</div>
 
     <div class="carousel-wrap">
       ${slides.length ? `<div class="carousel" id="car" tabindex="0" aria-label="Photos of ${esc(main.name)}">${slides.map((s, k) => `

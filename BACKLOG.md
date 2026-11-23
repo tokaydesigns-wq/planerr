@@ -15,7 +15,7 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## In review
 
-- [ ] Feedback box on the You screen (messages go privately to Supabase)
+- [ ] Want to go list: save trip ideas and Explore posts for later, plan them from Home
 
 ## Needs the owner
 
@@ -31,6 +31,7 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## Done
 
+- [x] Feedback box on the You screen (#28)
 - [x] Anonymous visitor count, with an off switch (#27)
 - [x] Easier with screen readers, keyboards and big text (#26)
 - [x] Short welcome for first-time users (#25)
