@@ -381,7 +381,7 @@ a.hero { display: block; text-decoration: none; }
 .sd-price { font-family: var(--display); font-weight: 800; font-size: 1.1rem; font-variant-numeric: tabular-nums; }
 .sd-price.free { color: var(--good); }
 .sd-img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 14px; }
-.costs { display: grid; }
+.costs { display: grid; grid-template-columns: minmax(0, 1fr); }
 .costs > div { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
 .costs > div span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .costs > div b { white-space: nowrap; }
