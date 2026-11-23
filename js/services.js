@@ -426,6 +426,13 @@ const Community = {
       await fetch(`${base}/rest/v1/visits`, { method: 'POST', headers: { ...this.headers(), Prefer: 'return=minimal' }, body: JSON.stringify({ device: state.visitorId, day: today, installed }) });
     } catch (e) { /* offline: try again tomorrow */ }
   },
+  // Feedback from the You screen. Phones can add messages but nobody can read them through the app;
+  // only the owner can, in the Supabase dashboard (see "Feedback" in supabase.sql).
+  async feedback(message, contact) {
+    const base = window.PLANERR_CONFIG.supabaseUrl.replace(/\/$/, '');
+    const r = await fetch(`${base}/rest/v1/feedback`, { method: 'POST', headers: { ...this.headers(), Prefer: 'return=minimal' }, body: JSON.stringify({ message, contact: contact || null }) });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  },
 };
 window.addEventListener('load', () => setTimeout(() => Community.visit(), 3000));
 

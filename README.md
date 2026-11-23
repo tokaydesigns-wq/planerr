@@ -138,6 +138,26 @@ group by 1 order by 1 desc;
 
 **How to read it:** "came back" is the number that matters. If a good share of new people come back on another day, Planerr is useful to them. One person on two phones (or after clearing the browser) counts as two.
 
+## Reading feedback
+
+The You screen has a **Tell us what you think** box. Messages (and an email, if the person chose to leave one) go to your Supabase project. Nobody can read them through the app; only you can, in the dashboard.
+
+**One-time setup:** run the whole `supabase.sql` file again in **SQL Editor → New query**. It only adds what's missing.
+
+**Read new messages:** open **SQL Editor → New query**, paste this and click **Run**:
+
+```sql
+select id, created_at as sent_on, message, contact from public.feedback where not done order by created_at desc;
+```
+
+**Mark one as handled** so it drops off that list (replace `123` with its `id`):
+
+```sql
+update public.feedback set done = true where id = 123;
+```
+
+You can also browse them in **Table Editor → feedback**.
+
 ## Limits to know
 
 - **Opening hours** come from OpenStreetMap volunteers. They're good for big attractions and patchier for small businesses, so confirm anything important on the official site.
