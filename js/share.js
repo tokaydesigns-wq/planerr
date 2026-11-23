@@ -87,9 +87,21 @@ function viewScreen() {
   </div>`;
 }
 
+// "Share Planerr": sends the app's own link with a short note. Testing on this computer still shares the live address.
+const APP_URL = 'https://tokaydesigns-wq.github.io/planerr/';
+const appUrl = () => /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) ? APP_URL : new URL('./', location.href).href;
+async function shareApp() {
+  const url = appUrl(), text = 'I plan day trips with Planerr. It finds places, checks the weather and drive, and picks spots to eat. Free, no sign-up.';
+  try {
+    if (navigator.share) { await navigator.share({ title: 'Planerr', text, url }); return; }
+    await navigator.clipboard.writeText(`${text} ${url}`); toast('Link copied. Paste it into a message.');
+  } catch (err) { if (err.name !== 'AbortError') toast(`Couldn’t share. The link is ${url}`); }
+}
+
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-act^="share-"]');
   if (!el) return;
+  if (el.dataset.act === 'share-app') { e.preventDefault(); await shareApp(); return; }
   if (el.dataset.act === 'share-save') {
     const adv = shareAdv(shareState.obj);
     adv.stops.forEach(s => { s.id = uid(); });

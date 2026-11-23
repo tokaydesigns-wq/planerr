@@ -123,7 +123,7 @@ img { max-width: 100%; display: block; }
 
 .field { display: grid; gap: 6px; }
 .field > span, .label { font-size: .78rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
-input[type=text], input[type=number], input[type=date], input[type=time], input[type=search], select, textarea {
+input[type=text], input[type=email], input[type=number], input[type=date], input[type=time], input[type=search], select, textarea {
   width: 100%; min-height: 46px; padding: 10px 14px; border-radius: 14px; border: 1.5px solid var(--field-line);
   background: var(--surface); min-width: 0;
 }
