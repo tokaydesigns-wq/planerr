@@ -144,6 +144,7 @@ function home() {
       <div class="section-title"><h2>Past adventures</h2><span class="muted small">${past.length}</span></div>
       ${past.length ? `<div class="adv-list">${past.map(advCard).join('')}</div>` : `<div class="empty">${pipNote('<span>Finished adventures show up here with your rating.</span>', 'sleepy')}</div>`}
     </section>
+    <p class="note"><a href="#/home" data-act="share-app">Enjoying Planerr? Share it with a friend</a></p>
     ${state.adventures.some(a => a.example) ? `<p class="note">Items marked Example are samples. Remove them in <a href="#/you">You</a>.</p>` : ''}
   </div>`;
 }
@@ -823,6 +824,11 @@ function you() {
       <p class="small muted">Everything is saved on this phone only. A backup file keeps your trips, photos and settings safe, and moves them to a new phone. Save it somewhere off the phone, like iCloud Drive, Google Drive or email.</p>
       <p class="small"><b>${backupAge()}</b></p>
       <div class="row wrap"><button class="btn sm primary" data-act="export">Back up now</button><label class="btn sm">Restore from backup<input type="file" id="import" accept="application/json,.json" hidden></label>${state.adventures.some(a => a.example) ? '<button class="btn sm" data-act="clear-examples">Remove examples</button>' : ''}</div>
+    </section>
+    <section class="card">
+      <h2>Share Planerr</h2>
+      <p class="small muted">Know someone who’d like planning day trips this way? Send them the app.</p>
+      <button class="btn sm primary" data-act="share-app" style="justify-self:start">📤 Share with a friend</button>
     </section>
     ${Community.ready ? `<section class="card">
       <h2>Tell us what you think</h2>

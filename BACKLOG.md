@@ -15,7 +15,7 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## In review
 
-- [ ] Want to go list: save trip ideas and Explore posts for later, plan them from Home
+- [ ] Share Planerr button: send the app to a friend from the You screen or Home
 
 ## Needs the owner
 
@@ -31,6 +31,7 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## Done
 
+- [x] Want to go list: save trip ideas and Explore posts for later (#29)
 - [x] Feedback box on the You screen (#28)
 - [x] Anonymous visitor count, with an off switch (#27)
 - [x] Easier with screen readers, keyboards and big text (#26)
