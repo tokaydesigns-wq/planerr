@@ -111,6 +111,29 @@ drop policy if exists "Anyone can log a visit" on public.visits;
 create policy "Anyone can log a visit" on public.visits
   for insert with check (day between current_date - 1 and current_date + 1);
 
+-- ---------- Feedback (added Nov 2026) ----------
+-- Messages from the "Tell us what you think" box on the You screen. Phones can add messages but nobody
+-- can read them through the app; only you can, in the dashboard. Safe to run again.
+create table if not exists public.feedback (
+  id         bigint generated always as identity primary key,
+  created_at timestamptz not null default now(),
+  message    text not null check (char_length(message) between 3 and 1000),
+  contact    text check (char_length(contact) <= 200),
+  done       boolean not null default false
+);
+alter table public.feedback enable row level security;
+drop policy if exists "Anyone can send feedback" on public.feedback;
+create policy "Anyone can send feedback" on public.feedback
+  for insert with check (done = false);
+
+/* D. Read feedback, newest first (not-yet-handled ones only).
+select id, created_at as sent_on, message, contact from public.feedback where not done order by created_at desc;
+*/
+
+/* E. Mark one as handled so it drops off the list. Replace 123 with its id.
+update public.feedback set done = true where id = 123;
+*/
+
 -- ---------- Owner tools: visitor numbers ----------
 -- Copy one query (without the /* and */ lines) into a NEW query tab in the SQL Editor and click Run.
 -- The README ("Checking your visitor numbers") has the same queries with step-by-step clicks.

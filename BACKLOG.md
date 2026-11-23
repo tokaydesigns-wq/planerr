@@ -15,6 +15,8 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## In review
 
+- [ ] Feedback box on the You screen (messages go privately to Supabase)
+
 ## Needs the owner
 
 - [ ] `[needs-owner]` Google "temporarily closed" status and in-app Google reviews need a Google Cloud account with billing (Places API). Declined for now.
@@ -29,6 +31,16 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## Done
 
+- [x] Anonymous visitor count, with an off switch (#27)
+- [x] Easier with screen readers, keyboards and big text (#26)
+- [x] Short welcome for first-time users (#25)
+- [x] Log what you really spent and compare it with the estimate (#24)
+- [x] Rain plan B: indoor swaps on wet-forecast days (#23)
+- [x] Trip ideas faster, especially repeat searches (#22)
+- [x] Send a plan to family as a link (#21)
+- [x] Tools to review reported community posts (#20)
+- [x] Backups: last backup date, a Home reminder, and fuller restore (#19)
+- [x] Add to calendar button on plan pages (#18)
 - [x] Trip recap: Share and Print buttons, and a Recap link on past adventure cards (#16)
 - [x] "Somewhere new" skips places from your past adventures (#15)
 - [x] Favor well-known places in trip ideas (#13)

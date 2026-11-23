@@ -770,6 +770,19 @@ function family() {
 }
 
 // ---------- You ----------
+// Sends the You screen's feedback box. Keeps the text if it fails, so nothing typed is lost.
+async function sendFeedback(btn) {
+  const msg = $('#fb-msg'), contact = $('#fb-contact'), text = msg.value.trim();
+  if (text.length < 3) { toast('Write a few words first'); msg.focus(); return; }
+  btn.disabled = true; btn.textContent = 'Sending…';
+  try {
+    await Community.feedback(text, contact.value.trim());
+    msg.value = ''; contact.value = '';
+    toast('Thanks! Your message was sent.');
+  } catch (e) { toast('Couldn’t send it. Check your signal and try again.'); }
+  btn.disabled = false; btn.textContent = 'Send';
+}
+
 function you() {
   const p = state.profile;
   const done = state.adventures.filter(a => a.status === 'done' && !a.example);
@@ -810,6 +823,13 @@ function you() {
       <div class="row wrap"><button class="btn sm primary" data-act="export">Back up now</button><label class="btn sm">Restore from backup<input type="file" id="import" accept="application/json,.json" hidden></label>${state.adventures.some(a => a.example) ? '<button class="btn sm" data-act="clear-examples">Remove examples</button>' : ''}</div>
     </section>
     ${Community.ready ? `<section class="card">
+      <h2>Tell us what you think</h2>
+      <p class="small muted">Something you love, something broken, an idea? It goes straight to Planerr’s maker.</p>
+      <label class="field"><span>Your message</span><textarea id="fb-msg" maxlength="1000" placeholder="I wish Planerr could…"></textarea></label>
+      <label class="field"><span>Your email (optional)</span><input type="email" id="fb-contact" maxlength="200" autocomplete="email" placeholder="Only if you’d like a reply"></label>
+      <button class="btn sm primary" data-act="feedback-send" style="justify-self:start">Send</button>
+    </section>
+    <section class="card">
       <h2>Visitor count</h2>
       <p class="small muted">${state.profile.countVisits === false ? 'Off. This phone isn’t counted.' : 'Once a day, Planerr sends an anonymous “someone used the app today”, so its maker can see how many people use it. It’s a random number, with no name, location or trip details.'}</p>
       <button class="btn sm" data-act="count-visits" style="justify-self:start">${state.profile.countVisits === false ? 'Turn back on' : 'Turn off'}</button>
@@ -951,6 +971,7 @@ document.addEventListener('click', async e => {
     case 'kid-del': state.family.kids = state.family.kids.filter(k => k.id !== el.dataset.kid); save(); keepScroll(); return;
     case 'fam-plan': { const c = newAdventure({ type: el.dataset.type, familyMode: true }); c._for = 'new'; ui.draft = c; ui.keepDraft = true; go('new'); return; }
     // you
+    case 'feedback-send': await sendFeedback(el); return;
     case 'count-visits': state.profile.countVisits = state.profile.countVisits === false; save(); keepScroll(); toast(state.profile.countVisits ? 'Visit count on' : 'Visit count off'); return;
     case 'units': state.profile.units = el.dataset.u; staleCheck(); save(); keepScroll(); return;
     case 'diet': { const k = el.dataset.d, set = new Set(state.profile.diet); set.has(k) ? set.delete(k) : set.add(k); state.profile.diet = [...set]; save(); keepScroll(); return; }
