@@ -15,7 +15,7 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## In review
 
-- [ ] Share Planerr button: send the app to a friend from the You screen or Home
+- [ ] Ready for tomorrow? card on Home the day before a trip
 
 ## Needs the owner
 
@@ -31,6 +31,7 @@ Tags: `[bug]` something broken · `[feature]` new section or ability · `[polish
 
 ## Done
 
+- [x] Share Planerr button (#30)
 - [x] Want to go list: save trip ideas and Explore posts for later (#29)
 - [x] Feedback box on the You screen (#28)
 - [x] Anonymous visitor count, with an off switch (#27)

@@ -74,6 +74,7 @@ function afterRender(view, id) {
   if ((view === 'a' || view === 'brief') && adv && !adv.research?.at && !ui.busy[id]) runResearch(adv);
   if (view === 'a' && adv && adv.status === 'planned' && adv.research?.at && !ui.busy[id] && rainWet(adv) && rainStops(adv).length
     && adv.research.rain?.key !== rainKey(adv) && !ui.rainBusy[id] && !ui.rainFailed[id]) loadRainSpots(adv);
+  if (view === 'home') { const t = eveningTrip(); if (t && !t.research?.at && !ui.busy[t.id]) runResearch(t); }
   if (view === 'explore' && !ui.community && !ui.loadingCommunity) loadCommunity();
   if (view === 'idea') setupIdeaDetail(id);
   if (view === 'chat') setupChat();
@@ -82,7 +83,8 @@ function afterRender(view, id) {
 
 async function runResearch(adv) {
   ui.busy[adv.id] = true; ui.steps[adv.id] = {}; delete ui.rainFailed[adv.id];
-  const rerender = () => { const r = parseRoute(); if (r.id === adv.id) render(); };
+  // Home shows tomorrow's forecast on the evening-before card, so it refreshes too.
+  const rerender = () => { const r = parseRoute(); if (r.id === adv.id || (r.view === 'home' && eveningTrip() === adv)) render(); };
   rerender();
   await research(adv, (name, st) => { ui.steps[adv.id][name] = st; if (st === 'start' && !ui.steps[adv.id].said) { ui.steps[adv.id].said = 1; announce('Researching your plan…'); } });
   announce('Research finished.');
@@ -120,6 +122,7 @@ function home() {
   return `<div class="screen">
     <header class="greet"><span class="eyebrow">${fmtDate(todayStr(), { weekday: 'long', month: 'long', day: 'numeric' })}</span><h1>${hi}${name ? ', ' + esc(name) : ''}.</h1></header>
     ${homeBanner(next ? (next.status === 'active' ? 'Adventure in progress! Let’s roll.' : `${whenLabel(next)}: ${esc(next.title)}!`) : 'Where are we going today?')}
+    ${eveningCard()}
     ${chatStarter()}
     ${backupNudge()}
     <a class="idea-cta" href="#/ideas"><span class="e">✨</span><span><b>Or pick settings yourself</b><small>Choose drive time, kinds of day and food. Planerr builds 3 plans.</small></span><span class="go">→</span></a>
@@ -609,7 +612,7 @@ function briefing(id) {
   const sch = schedule(adv), w = wxDay(adv), alerts = alertsFor(adv).filter(a => a.lv !== 'info'), tickets = adv.stops.filter(s => ticketInfo(adv, s));
   const h = new Date().getHours(), hi = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
   const d = w?.daily;
-  const wear = !d ? '' : d.temperature_2m_max[0] >= tempHot() ? 'Dress light and bring a sun hat.' : d.temperature_2m_min[0] <= tempCold() ? 'Wear warm layers. It starts cold.' : (d.precipitation_probability_max[0] ?? 0) >= 50 ? 'Bring a rain jacket.' : 'Layers will cover you all day.';
+  const wear = wearAdvice(d);
   const kids = adv.familyMode ? state.family.kids : [];
   const dayNote = daysUntil(adv.date) === 0 ? '' : `<div class="alert info"><span class="ic">📅</span><span>This briefing is for ${fmtDate(adv.date, { weekday: 'long', month: 'long', day: 'numeric' })}. You can still start now.</span></div>`;
   return `<div class="brief">
