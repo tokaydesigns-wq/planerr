@@ -20,6 +20,7 @@ A phone-first web app for planning day-trip adventures. Add it to your home scre
   - heads-up alerts: closed or not-yet-open stops, rain on outdoor stops, being out after dark, running past your back-by time, going over budget
 - **Tickets**: flags stops that likely need advance tickets, links the official site when OpenStreetMap lists it, and gives step-by-step buying instructions for your date, arrival time and group.
 - **Hike supplies**: water per person sized to your time on the trail, plus gear chosen from the forecast (rain, UV, cold, heat, sunset).
+- **Ready for tomorrow?**: the day before a trip, Home shows a short checklist: the forecast and what to wear, when to leave and set an alarm, how much is packed, tickets to sort out, anything to check, and a fuel reminder for long drives.
 - **Morning briefing**: a welcome, the weather and what to wear, when to leave, today's route, warnings, a tickets check and a packing check.
 - **Live mode**: next stop, one-tap navigation, mark stops done, nearby food.
 - **Rate the day** from 1 to 5 stars, give each stop a 👍 or 👎, and leave tips. Food ratings feed your taste profile.
@@ -176,6 +177,7 @@ You can also browse them in **Table Editor → feedback**.
 - `js/ui.js`: screens and interactions
 - `js/ideas.js`: the trip idea generator
 - `js/wishlist.js`: the Want to go list
+- `js/evening.js`: the Ready for tomorrow? card on Home
 - `sw.js`, `manifest.webmanifest`, `icons/`: install and offline support
 - `supabase.sql`, `config.js`: community feed
 - `v1/index.html`: the original desktop planner

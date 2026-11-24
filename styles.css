@@ -562,3 +562,6 @@ h1, h2, h3, .type-opt, .greet, .field > span { overflow-wrap: anywhere; }
 .trail-stats { grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr)); }
 .trail-stats > div { min-width: 0; }
 .pill { white-space: normal; max-width: 100%; }
+
+/* Evening-before card on Home: keep a long trip name to one line */
+.evening-trip { margin: 2px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
